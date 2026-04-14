@@ -65,12 +65,14 @@ class PlanetScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.setDepth(10);
 
-    // Walk animations: 0-2 down, 3-5 left, 6-8 up, 9-11 right
+    // Walk animations based on actual spritesheet layout:
+    // 0-3: front (down), 4-7: back (up), 8-11: side (right, flip for left)
     if (!this.anims.exists('astro-down')) {
-      this.anims.create({ key: 'astro-down',  frames: this.anims.generateFrameNumbers('astronaut', { start: 0, end: 2 }), frameRate: 6, repeat: -1 });
-      this.anims.create({ key: 'astro-left',  frames: this.anims.generateFrameNumbers('astronaut', { start: 3, end: 5 }), frameRate: 6, repeat: -1 });
-      this.anims.create({ key: 'astro-up',    frames: this.anims.generateFrameNumbers('astronaut', { start: 6, end: 8 }), frameRate: 6, repeat: -1 });
-      this.anims.create({ key: 'astro-right', frames: this.anims.generateFrameNumbers('astronaut', { start: 9, end: 11 }), frameRate: 6, repeat: -1 });
+      this.anims.create({ key: 'astro-down',  frames: this.anims.generateFrameNumbers('astronaut', { frames: [0, 1, 2, 3] }), frameRate: 6, repeat: -1 });
+      this.anims.create({ key: 'astro-up',    frames: this.anims.generateFrameNumbers('astronaut', { frames: [4, 5, 6, 7] }), frameRate: 6, repeat: -1 });
+      this.anims.create({ key: 'astro-right', frames: this.anims.generateFrameNumbers('astronaut', { frames: [8, 9, 10, 11] }), frameRate: 6, repeat: -1 });
+      // Left reuses right frames — we flip the sprite
+      this.anims.create({ key: 'astro-left',  frames: this.anims.generateFrameNumbers('astronaut', { frames: [8, 9, 10, 11] }), frameRate: 6, repeat: -1 });
     }
     this.lastDir = 'down';
 
@@ -133,11 +135,12 @@ class PlanetScene extends Phaser.Scene {
         this.lastDir = vx < 0 ? 'left' : 'right';
       }
       this.player.play('astro-' + this.lastDir, true);
+      this.player.setFlipX(this.lastDir === 'left');
     } else {
       this.player.stop();
-      // Idle frame based on last direction
-      const idleFrames = { down: 0, left: 3, up: 6, right: 9 };
+      const idleFrames = { down: 0, up: 4, right: 8, left: 8 };
       this.player.setFrame(idleFrames[this.lastDir]);
+      this.player.setFlipX(this.lastDir === 'left');
     }
 
     // ── Resource collection ──────────────────────────────────────────
