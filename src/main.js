@@ -301,13 +301,6 @@ function _renderStation(el) {
         </div>
       </div>
       <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
-        <div style="font-size:13px;color:#44ee66;margin-bottom:6px;">REPAIR BAY</div>
-        <div style="display:flex;gap:12px;">
-          ${_repairBtn('hull', p.hp, p.maxHp + SpaceState.getMaxHpBonus(), '#44ee66')}
-          ${_repairBtn('shield', Math.floor(p.shield), p.maxShield + SpaceState.getMaxShieldBonus(), '#4488ff')}
-        </div>
-      </div>
-      <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
         <div style="font-size:13px;color:#ff8844;margin-bottom:6px;">WEAPONS</div>
         ${Object.entries(WEAPONS).map(([key, w]) => {
           const equipped = SpaceState.player.weapon === key;

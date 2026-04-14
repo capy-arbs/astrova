@@ -201,8 +201,35 @@ class FlightScene extends Phaser.Scene {
 
     // ── Shield regen ─────────────────────────────────────────────────
     const p = SpaceState.player;
-    if (p.shield < p.maxShield && (time - this.lastHitTime) > SHIELD_REGEN_DELAY) {
-      p.shield = Math.min(p.maxShield, p.shield + SpaceState.getShieldRegen() * (delta / 1000));
+    const effectiveMaxShield = p.maxShield + SpaceState.getMaxShieldBonus();
+    const effectiveMaxHp = p.maxHp + SpaceState.getMaxHpBonus();
+
+    if (p.shield < effectiveMaxShield && (time - this.lastHitTime) > SHIELD_REGEN_DELAY) {
+      const regenAmt = SpaceState.getShieldRegen() * (delta / 1000);
+      p.shield = Math.min(effectiveMaxShield, p.shield + regenAmt);
+
+      // Shields XP from regen
+      this._shieldRegenXpTimer = (this._shieldRegenXpTimer || 0) + delta;
+      if (this._shieldRegenXpTimer >= 2000) {
+        this._shieldRegenXpTimer -= 2000;
+        SpaceState.skills.shields.totalExp += 3;
+        SpaceState.checkSkillUp('shields');
+      }
+    }
+
+    // ── Hull repair (passive, slower than shields) ────────────────────
+    if (p.hp < effectiveMaxHp && (time - this.lastHitTime) > SHIELD_REGEN_DELAY * 2) {
+      const hullRegenRate = 0.5 + (SpaceState.skills.hullIntegrity.level - 1) * 0.08; // slow base, scales with skill
+      const repairAmt = hullRegenRate * (delta / 1000);
+      p.hp = Math.min(effectiveMaxHp, p.hp + repairAmt);
+
+      // Hull Integrity XP from repair
+      this._hullRepairXpTimer = (this._hullRepairXpTimer || 0) + delta;
+      if (this._hullRepairXpTimer >= 3000) {
+        this._hullRepairXpTimer -= 3000;
+        SpaceState.skills.hullIntegrity.totalExp += 3;
+        SpaceState.checkSkillUp('hullIntegrity');
+      }
     }
 
     // ── Ship damage visual ───────────────────────────────────────────
