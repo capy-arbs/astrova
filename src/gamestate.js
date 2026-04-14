@@ -16,6 +16,65 @@ function xpToLevel(totalXP) {
   return 1;
 }
 
+// ── Weapon definitions ───────────────────────────────────────────────────────
+const WEAPONS = {
+  'auto-cannon':  { name: 'Auto Cannon',  fireRate: 180, damage: 1, bulletKey: 'bullet-auto',  bulletSpeed: 400, spread: 0, cost: 0     },
+  'rockets':      { name: 'Rockets',      fireRate: 500, damage: 3, bulletKey: 'bullet-rocket', bulletSpeed: 300, spread: 0, cost: 200   },
+  'zapper':       { name: 'Zapper',       fireRate: 100, damage: 1, bulletKey: 'bullet-zapper', bulletSpeed: 500, spread: 0.1, cost: 350 },
+  'big-space-gun':{ name: 'Big Space Gun',fireRate: 800, damage: 5, bulletKey: 'bullet-bsg',    bulletSpeed: 250, spread: 0, cost: 600   },
+};
+
+// ── Star system definitions ──────────────────────────────────────────────────
+const STAR_SYSTEMS = {
+  'sol': {
+    name: 'Sol System',
+    planets: [
+      { key: 'planet-terran', x: 500,  y: 500,  name: 'Terra Nova',  scale: 2.0 },
+      { key: 'planet-ice',    x: 2400, y: 600,  name: 'Glacius',     scale: 1.8 },
+      { key: 'planet-lava',   x: 1500, y: 2400, name: 'Inferno',     scale: 2.2 },
+      { key: 'planet-barren', x: 400,  y: 2200, name: 'Dust Rock',   scale: 1.5 },
+      { key: 'planet-terran', x: 2600, y: 2000, name: 'New Eden',    scale: 1.6 },
+    ],
+    station: { x: 1500, y: 1500 },
+    enemyCount: 20,
+    jumpGates: [
+      { x: 2900, y: 1500, target: 'alpha-centauri', name: 'Alpha Centauri Gate' },
+    ],
+  },
+  'alpha-centauri': {
+    name: 'Alpha Centauri',
+    planets: [
+      { key: 'planet-ice',    x: 600,  y: 800,  name: 'Frostheim',   scale: 2.5 },
+      { key: 'planet-barren', x: 2200, y: 400,  name: 'Ashfall',     scale: 1.8 },
+      { key: 'planet-lava',   x: 1800, y: 2200, name: 'Pyroclast',   scale: 2.0 },
+      { key: 'planet-terran', x: 500,  y: 2400, name: 'Haven',       scale: 1.7 },
+      { key: 'planet-ice',    x: 2600, y: 1800, name: 'Cryo-9',      scale: 1.4 },
+      { key: 'planet-barren', x: 1200, y: 1000, name: 'Void Scar',   scale: 1.9 },
+    ],
+    station: { x: 1400, y: 1400 },
+    enemyCount: 30,
+    jumpGates: [
+      { x: 100, y: 1500, target: 'sol', name: 'Sol Gate' },
+      { x: 1500, y: 100, target: 'kepler', name: 'Kepler Gate' },
+    ],
+  },
+  'kepler': {
+    name: 'Kepler Expanse',
+    planets: [
+      { key: 'planet-lava',   x: 800,  y: 600,  name: 'Hellion',     scale: 2.8 },
+      { key: 'planet-lava',   x: 2000, y: 800,  name: 'Crucible',    scale: 2.0 },
+      { key: 'planet-barren', x: 2500, y: 2200, name: 'Graveyard',   scale: 2.2 },
+      { key: 'planet-ice',    x: 400,  y: 2000, name: 'Deep Freeze', scale: 1.6 },
+      { key: 'planet-terran', x: 1500, y: 1800, name: 'Oasis',       scale: 1.5 },
+    ],
+    station: { x: 1500, y: 1200 },
+    enemyCount: 40,
+    jumpGates: [
+      { x: 1500, y: 2900, target: 'alpha-centauri', name: 'Alpha Centauri Gate' },
+    ],
+  },
+};
+
 // ── Game State ───────────────────────────────────────────────────────────────
 const SpaceState = {
   player: {
@@ -37,12 +96,12 @@ const SpaceState = {
     exploration: { level: 1, totalExp: 0 },
   },
 
+  currentSystem: 'sol',
   currentLocation: 'deep-space',
   spaceReturn: null,
   cargo: {},
-  discoveredPlanets: [], // planet names already visited
+  discoveredPlanets: [],
 
-  // Check and apply skill level-ups. Returns levels gained.
   checkSkillUp(skillName) {
     const skill = this.skills[skillName];
     const newLevel = Math.min(MAX_LEVEL, xpToLevel(skill.totalExp));
@@ -51,18 +110,25 @@ const SpaceState = {
     return gained;
   },
 
-  // Derived stats from skills
-  getShipSpeed()   { return 150 + (this.skills.piloting.level - 1) * 2; },
-  getBulletDamage(){ return this.player.baseDamage + Math.floor((this.skills.combat.level - 1) * 0.3); },
-  getMiningBonus() { return 1 + Math.floor(this.skills.mining.level / 10); }, // extra resources
-  getTradeDiscount() { return Math.min(0.3, (this.skills.trading.level - 1) * 0.006); }, // up to 30% discount
+  getShipSpeed()    { return 150 + (this.skills.piloting.level - 1) * 2; },
+  getBulletDamage() {
+    const wep = WEAPONS[this.player.weapon] || WEAPONS['auto-cannon'];
+    return wep.damage + this.player.baseDamage - 1 + Math.floor((this.skills.combat.level - 1) * 0.3);
+  },
+  getFireRate()     { return (WEAPONS[this.player.weapon] || WEAPONS['auto-cannon']).fireRate; },
+  getMiningBonus()  { return 1 + Math.floor(this.skills.mining.level / 10); },
+  getTradeDiscount(){ return Math.min(0.3, (this.skills.trading.level - 1) * 0.006); },
 
-  // Add cargo
-  addCargo(key, amount) {
-    this.cargo[key] = (this.cargo[key] || 0) + amount;
+  // Ship damage state: full, slight, damaged, very-damaged
+  getShipDamageKey() {
+    const pct = this.player.hp / this.player.maxHp;
+    if (pct > 0.75) return 'ship-full';
+    if (pct > 0.50) return 'ship-slight';
+    if (pct > 0.25) return 'ship-damaged';
+    return 'ship-very-damaged';
   },
 
-  // Remove cargo, returns true if enough
+  addCargo(key, amount) { this.cargo[key] = (this.cargo[key] || 0) + amount; },
   removeCargo(key, amount) {
     if ((this.cargo[key] || 0) < amount) return false;
     this.cargo[key] -= amount;
@@ -70,13 +136,25 @@ const SpaceState = {
     return true;
   },
 
-  // Save / Load
+  // Death: keep skills, lose ship (reset to starter)
+  resetShip() {
+    this.player.hp = 100;
+    this.player.maxHp = 100;
+    this.player.shield = 50;
+    this.player.maxShield = 50;
+    this.player.baseDamage = 1;
+    this.player.weapon = 'auto-cannon';
+    this.cargo = {};
+    this.currentSystem = 'sol';
+    // Keep: skills, credits, discoveredPlanets
+  },
+
   save() {
     try {
       localStorage.setItem('astrova-save', JSON.stringify({
         player: { ...this.player },
         skills: JSON.parse(JSON.stringify(this.skills)),
-        currentLocation: this.currentLocation,
+        currentSystem: this.currentSystem,
         cargo: { ...this.cargo },
         discoveredPlanets: [...this.discoveredPlanets],
       }));
@@ -89,7 +167,7 @@ const SpaceState = {
       if (!raw) return false;
       const data = JSON.parse(raw);
       Object.assign(this.player, data.player);
-      this.currentLocation = data.currentLocation || 'deep-space';
+      this.currentSystem = data.currentSystem || 'sol';
       this.cargo = data.cargo || {};
       this.discoveredPlanets = data.discoveredPlanets || [];
       if (data.skills) {
@@ -121,11 +199,11 @@ const RESOURCE_DEFS = {
 
 // ── Ship upgrade definitions ─────────────────────────────────────────────────
 const UPGRADES = [
-  { name: 'Reinforced Hull',     stat: 'maxHp',     amount: 25,  cost: 100, engLevel: 1  },
-  { name: 'Hull Plating II',     stat: 'maxHp',     amount: 50,  cost: 300, engLevel: 10 },
-  { name: 'Shield Booster',      stat: 'maxShield', amount: 25,  cost: 120, engLevel: 1  },
-  { name: 'Shield Booster II',   stat: 'maxShield', amount: 50,  cost: 350, engLevel: 10 },
-  { name: 'Weapon Calibration',  stat: 'baseDamage',amount: 1,   cost: 150, engLevel: 5  },
-  { name: 'Weapon Calibration II',stat:'baseDamage',amount: 1,   cost: 400, engLevel: 15 },
-  { name: 'Weapon Calibration III',stat:'baseDamage',amount: 2,  cost: 800, engLevel: 25 },
+  { name: 'Reinforced Hull',       stat: 'maxHp',     amount: 25, cost: 100, engLevel: 1  },
+  { name: 'Hull Plating II',       stat: 'maxHp',     amount: 50, cost: 300, engLevel: 10 },
+  { name: 'Shield Booster',        stat: 'maxShield', amount: 25, cost: 120, engLevel: 1  },
+  { name: 'Shield Booster II',     stat: 'maxShield', amount: 50, cost: 350, engLevel: 10 },
+  { name: 'Weapon Calibration',    stat: 'baseDamage',amount: 1,  cost: 150, engLevel: 5  },
+  { name: 'Weapon Calibration II', stat: 'baseDamage',amount: 1,  cost: 400, engLevel: 15 },
+  { name: 'Weapon Calibration III',stat: 'baseDamage',amount: 2,  cost: 800, engLevel: 25 },
 ];

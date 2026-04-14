@@ -189,6 +189,22 @@ function _renderStation(el) {
           ${upgradeHtml}
         </div>
       </div>
+      <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
+        <div style="font-size:13px;color:#ff8844;margin-bottom:6px;">WEAPONS</div>
+        ${Object.entries(WEAPONS).map(([key, w]) => {
+          const equipped = SpaceState.player.weapon === key;
+          const canAfford = SpaceState.player.credits >= w.cost;
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #222;">
+            <div>
+              <span style="color:${equipped ? '#44ff44' : '#ccc'};font-size:12px;">${w.name}</span>
+              <span style="color:#666;font-size:10px;"> DMG:${w.damage} SPD:${Math.round(1000/w.fireRate)}/s</span>
+            </div>
+            ${equipped ? '<span style="color:#44ff44;font-size:11px;">Equipped</span>' :
+              w.cost === 0 ? `<button onclick="equipWeapon('${key}')" style="background:#2a2a3a;color:#aaa;border:1px solid #555;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">Equip</button>` :
+              `<button onclick="buyWeapon('${key}')" ${!canAfford?'disabled':''} style="background:${canAfford?'#3a2a1a':'#222'};color:${canAfford?'#ff8844':'#555'};border:1px solid ${canAfford?'#ff8844':'#333'};border-radius:4px;padding:2px 8px;cursor:${canAfford?'pointer':'default'};font-size:11px;">${w.cost}cr</button>`}
+          </div>`;
+        }).join('')}
+      </div>
       <div style="text-align:center;color:#ddcc44;font-size:13px;margin-top:12px;">Credits: ${SpaceState.player.credits}</div>
       <div style="text-align:center;color:#445;font-size:11px;margin-top:4px;">[ESC] to undock</div>
     </div>`;
@@ -245,10 +261,48 @@ function buyUpgrade(idx) {
   _renderStation();
 }
 
+function buyWeapon(key) {
+  const w = WEAPONS[key];
+  if (!w || SpaceState.player.credits < w.cost) return;
+  SpaceState.player.credits -= w.cost;
+  SpaceState.player.weapon = key;
+  _renderStation();
+}
+
+function equipWeapon(key) {
+  SpaceState.player.weapon = key;
+  _renderStation();
+}
+
 function hideStationScreen() {
   _stationOpen = false;
   const el = document.getElementById('station-screen');
   if (el) el.remove();
+}
+
+// ── Game Over Screen (DOM) ───────────────────────────────────────────────────
+function showGameOverScreen(onRestart) {
+  const el = document.createElement('div');
+  el.id = 'gameover-screen';
+  el.style.cssText = 'position:absolute;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
+  el.innerHTML = `
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.8);"></div>
+    <div style="position:relative;text-align:center;color:#ddd;">
+      <div style="font-size:36px;font-weight:700;color:#cc2222;margin-bottom:8px;">SHIP DESTROYED</div>
+      <div style="font-size:14px;color:#aa6666;margin-bottom:4px;">Your cargo and ship upgrades have been lost.</div>
+      <div style="font-size:13px;color:#888;margin-bottom:20px;">Skills and credits preserved.</div>
+      <div style="font-size:16px;color:#aaa;">Press R to respawn</div>
+    </div>`;
+  document.getElementById('hud-overlay').appendChild(el);
+
+  const handler = (e) => {
+    if (e.key === 'r' || e.key === 'R') {
+      el.remove();
+      document.removeEventListener('keydown', handler);
+      if (onRestart) onRestart();
+    }
+  };
+  document.addEventListener('keydown', handler);
 }
 
 // ── World prompt helpers (DOM) ───────────────────────────────────────────────
