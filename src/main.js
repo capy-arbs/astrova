@@ -205,6 +205,25 @@ function _renderStation(el) {
           </div>`;
         }).join('')}
       </div>
+      <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
+        <div style="font-size:13px;color:#44ddcc;margin-bottom:6px;">SHIPYARD</div>
+        ${Object.entries(SHIPS).map(([key, s]) => {
+          const owned = SpaceState.player.ship === key;
+          const canAfford = SpaceState.player.credits >= s.cost;
+          const hasLevel = SpaceState.skills.piloting.level >= s.pilotReq;
+          const disabled = !canAfford || !hasLevel;
+          const spd = s.speedBonus >= 0 ? '+' + s.speedBonus : '' + s.speedBonus;
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #222;">
+            <div>
+              <span style="color:${owned ? '#44ff44' : '#ccc'};font-size:12px;">${s.name}</span>
+              <div style="font-size:10px;color:#666;">HP:${s.hp} SH:${s.shield} SPD:${spd} ${!hasLevel ? '(Pilot LV' + s.pilotReq + ')' : ''}</div>
+            </div>
+            ${owned ? '<span style="color:#44ff44;font-size:11px;">Current</span>' :
+              s.cost === 0 ? `<button onclick="switchShip('${key}')" style="background:#2a3a3a;color:#44ddcc;border:1px solid #44ddcc;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">Select</button>` :
+              `<button onclick="buyShip('${key}')" ${disabled?'disabled':''} style="background:${disabled?'#222':'#1a3a3a'};color:${disabled?'#555':'#44ddcc'};border:1px solid ${disabled?'#333':'#44ddcc'};border-radius:4px;padding:2px 8px;cursor:${disabled?'default':'pointer'};font-size:11px;">${s.cost}cr</button>`}
+          </div>`;
+        }).join('')}
+      </div>
       <div style="text-align:center;color:#ddcc44;font-size:13px;margin-top:12px;">Credits: ${SpaceState.player.credits}</div>
       <div style="text-align:center;color:#445;font-size:11px;margin-top:4px;">[ESC] to undock</div>
     </div>`;
@@ -258,6 +277,21 @@ function buyUpgrade(idx) {
   if (up.stat === 'maxHp') SpaceState.player.hp = SpaceState.player.maxHp;
   if (up.stat === 'maxShield') SpaceState.player.shield = SpaceState.player.maxShield;
 
+  _renderStation();
+}
+
+function buyShip(key) {
+  if (SpaceState.buyShip(key)) _renderStation();
+}
+
+function switchShip(key) {
+  const def = SHIPS[key];
+  if (!def) return;
+  SpaceState.player.ship = key;
+  SpaceState.player.maxHp = def.hp;
+  SpaceState.player.hp = def.hp;
+  SpaceState.player.maxShield = def.shield;
+  SpaceState.player.shield = def.shield;
   _renderStation();
 }
 

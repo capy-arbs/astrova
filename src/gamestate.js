@@ -75,6 +75,45 @@ const STAR_SYSTEMS = {
   },
 };
 
+// ── Ship definitions ─────────────────────────────────────────────────────────
+const SHIPS = {
+  'starter': {
+    name: 'Starter Ship',    spriteKey: 'ship-starter',   size: 48,
+    hp: 100, shield: 50, speedBonus: 0, cost: 0, pilotReq: 1,
+    path: VOID_MAIN + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Full health.png',
+  },
+  'nairan-scout': {
+    name: 'Nairan Scout',    spriteKey: 'ship-nairan-scout', size: 64,
+    hp: 80, shield: 75, speedBonus: 15, cost: 300, pilotReq: 5,
+    path: ASSET + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Scout - Base.png',
+  },
+  'nairan-fighter': {
+    name: 'Nairan Fighter',  spriteKey: 'ship-nairan-fighter', size: 64,
+    hp: 120, shield: 80, speedBonus: 5, cost: 500, pilotReq: 8,
+    path: ASSET + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Fighter - Base.png',
+  },
+  'nautolan-fighter': {
+    name: 'Nautolan Fighter', spriteKey: 'ship-nautolan-fighter', size: 64,
+    hp: 140, shield: 100, speedBonus: 0, cost: 800, pilotReq: 12,
+    path: ASSET + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Fighter - Base.png',
+  },
+  'nairan-frigate': {
+    name: 'Nairan Frigate',  spriteKey: 'ship-nairan-frigate', size: 64,
+    hp: 180, shield: 120, speedBonus: -5, cost: 1200, pilotReq: 18,
+    path: ASSET + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Frigate - Base.png',
+  },
+  'nautolan-frigate': {
+    name: 'Nautolan Frigate', spriteKey: 'ship-nautolan-frigate', size: 64,
+    hp: 200, shield: 150, speedBonus: -10, cost: 2000, pilotReq: 25,
+    path: ASSET + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Frigate - Base.png',
+  },
+  'nairan-battlecruiser': {
+    name: 'Battlecruiser',   spriteKey: 'ship-nairan-bc', size: 128,
+    hp: 300, shield: 200, speedBonus: -20, cost: 5000, pilotReq: 35,
+    path: ASSET + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Battlecruiser - Base.png',
+  },
+};
+
 // ── Game State ───────────────────────────────────────────────────────────────
 const SpaceState = {
   player: {
@@ -85,6 +124,7 @@ const SpaceState = {
     baseDamage: 1,
     credits: 0,
     weapon: 'auto-cannon',
+    ship: 'starter',
   },
 
   skills: {
@@ -110,7 +150,10 @@ const SpaceState = {
     return gained;
   },
 
-  getShipSpeed()    { return 150 + (this.skills.piloting.level - 1) * 2; },
+  getShipSpeed() {
+    const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
+    return 150 + (this.skills.piloting.level - 1) * 2 + shipDef.speedBonus;
+  },
   getBulletDamage() {
     const wep = WEAPONS[this.player.weapon] || WEAPONS['auto-cannon'];
     return wep.damage + this.player.baseDamage - 1 + Math.floor((this.skills.combat.level - 1) * 0.3);
@@ -119,13 +162,40 @@ const SpaceState = {
   getMiningBonus()  { return 1 + Math.floor(this.skills.mining.level / 10); },
   getTradeDiscount(){ return Math.min(0.3, (this.skills.trading.level - 1) * 0.006); },
 
-  // Ship damage state: full, slight, damaged, very-damaged
-  getShipDamageKey() {
-    const pct = this.player.hp / this.player.maxHp;
-    if (pct > 0.75) return 'ship-full';
-    if (pct > 0.50) return 'ship-slight';
-    if (pct > 0.25) return 'ship-damaged';
-    return 'ship-very-damaged';
+  getShipSpriteKey() {
+    const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
+    // Only starter ship has damage state sprites
+    if (this.player.ship === 'starter') {
+      const pct = this.player.hp / this.player.maxHp;
+      if (pct > 0.75) return 'ship-full';
+      if (pct > 0.50) return 'ship-slight';
+      if (pct > 0.25) return 'ship-damaged';
+      return 'ship-very-damaged';
+    }
+    return shipDef.spriteKey;
+  },
+
+  getShipScale() {
+    const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
+    // Scale larger ships down a bit so they're not huge
+    if (shipDef.size === 128) return 0.5;
+    if (shipDef.size === 64) return 0.7;
+    return 1.0;
+  },
+
+  // Buy a new ship — applies its base stats
+  buyShip(shipKey) {
+    const def = SHIPS[shipKey];
+    if (!def) return false;
+    if (this.player.credits < def.cost) return false;
+    if (this.skills.piloting.level < def.pilotReq) return false;
+    this.player.credits -= def.cost;
+    this.player.ship = shipKey;
+    this.player.maxHp = def.hp;
+    this.player.hp = def.hp;
+    this.player.maxShield = def.shield;
+    this.player.shield = def.shield;
+    return true;
   },
 
   addCargo(key, amount) { this.cargo[key] = (this.cargo[key] || 0) + amount; },
@@ -138,6 +208,7 @@ const SpaceState = {
 
   // Death: keep skills, lose ship (reset to starter)
   resetShip() {
+    this.player.ship = 'starter';
     this.player.hp = 100;
     this.player.maxHp = 100;
     this.player.shield = 50;

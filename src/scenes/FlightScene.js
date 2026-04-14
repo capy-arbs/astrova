@@ -16,11 +16,18 @@ class FlightScene extends Phaser.Scene {
     this.load.image('bg-stars', VOID_ENV + 'Backgrounds/PNGs/Condesed/Starry background  - Layer 02 - Stars.png');
     this.load.image('bg-stars2',VOID_ENV + 'Backgrounds/PNGs/Condesed/Starry background  - Layer 03 - Stars.png');
 
-    // Ship damage states
+    // Ship damage states (starter ship)
     this.load.image('ship-full',         VOID_MAIN + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Full health.png');
     this.load.image('ship-slight',       VOID_MAIN + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Slight damage.png');
     this.load.image('ship-damaged',      VOID_MAIN + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Damaged.png');
     this.load.image('ship-very-damaged', VOID_MAIN + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Very damaged.png');
+
+    // All buyable ships
+    Object.values(SHIPS).forEach(s => {
+      if (!this.textures.exists(s.spriteKey)) {
+        this.load.image(s.spriteKey, s.path);
+      }
+    });
 
     this.load.spritesheet('ship-engine', VOID_MAIN + 'Main Ship/Main Ship - Engine Effects/PNGs/Main Ship - Engines - Base Engine - Spritesheet.png',
       { frameWidth: 48, frameHeight: 48 });
@@ -99,7 +106,8 @@ class FlightScene extends Phaser.Scene {
     const spawnY = SpaceState.spaceReturn ? SpaceState.spaceReturn.y : WORLD_SIZE / 2;
     SpaceState.spaceReturn = null;
 
-    this.player = this.physics.add.sprite(spawnX, spawnY, SpaceState.getShipDamageKey());
+    this.player = this.physics.add.sprite(spawnX, spawnY, SpaceState.getShipSpriteKey());
+    this.player.setScale(SpaceState.getShipScale());
     this.player.setDepth(10);
     this.player.setCollideWorldBounds(true);
     this.player.setDamping(true);
@@ -174,7 +182,8 @@ class FlightScene extends Phaser.Scene {
     }
 
     // ── Ship damage visual ───────────────────────────────────────────
-    this.player.setTexture(SpaceState.getShipDamageKey());
+    this.player.setTexture(SpaceState.getShipSpriteKey());
+    this.player.setScale(SpaceState.getShipScale());
 
     // ── Movement ─────────────────────────────────────────────────────
     const up    = this.cursors.up.isDown    || this.wasd.W.isDown;
