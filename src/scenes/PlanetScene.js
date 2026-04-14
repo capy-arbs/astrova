@@ -28,8 +28,8 @@ class PlanetScene extends Phaser.Scene {
   }
 
   preload() {
-    // Player uses ship sprite for now (landed ship at spawn, player is small marker)
     this.load.image('landed-ship', VOID_MAIN + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Full health.png');
+    this.load.spritesheet('astronaut', 'assets/sprites/astronaut/Astronaut.png', { frameWidth: 64, frameHeight: 64 });
   }
 
   create() {
@@ -59,11 +59,20 @@ class PlanetScene extends Phaser.Scene {
 
     this.shipPromptVisible = false;
 
-    // ── Player (simple circle for now) ───────────────────────────────
-    this.player = this.add.circle(PLANET_SIZE / 2, PLANET_SIZE / 2 + 40, 6, 0xffffff);
-    this.physics.add.existing(this.player);
-    this.player.body.setCollideWorldBounds(true);
+    // ── Player (astronaut) ─────────────────────────────────────────
+    this.player = this.physics.add.sprite(PLANET_SIZE / 2, PLANET_SIZE / 2 + 40, 'astronaut', 0);
+    this.player.setScale(0.5);
+    this.player.setCollideWorldBounds(true);
     this.player.setDepth(10);
+
+    // Walk animations: 0-2 down, 3-5 left, 6-8 up, 9-11 right
+    if (!this.anims.exists('astro-down')) {
+      this.anims.create({ key: 'astro-down',  frames: this.anims.generateFrameNumbers('astronaut', { start: 0, end: 2 }), frameRate: 6, repeat: -1 });
+      this.anims.create({ key: 'astro-left',  frames: this.anims.generateFrameNumbers('astronaut', { start: 3, end: 5 }), frameRate: 6, repeat: -1 });
+      this.anims.create({ key: 'astro-up',    frames: this.anims.generateFrameNumbers('astronaut', { start: 6, end: 8 }), frameRate: 6, repeat: -1 });
+      this.anims.create({ key: 'astro-right', frames: this.anims.generateFrameNumbers('astronaut', { start: 9, end: 11 }), frameRate: 6, repeat: -1 });
+    }
+    this.lastDir = 'down';
 
     // ── Camera ───────────────────────────────────────────────────────
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
@@ -115,6 +124,21 @@ class PlanetScene extends Phaser.Scene {
     if (left)  vx = -WALK_SPEED;
     if (right) vx = WALK_SPEED;
     this.player.body.setVelocity(vx, vy);
+
+    // Animate astronaut
+    if (vx !== 0 || vy !== 0) {
+      if (Math.abs(vy) >= Math.abs(vx)) {
+        this.lastDir = vy < 0 ? 'up' : 'down';
+      } else {
+        this.lastDir = vx < 0 ? 'left' : 'right';
+      }
+      this.player.play('astro-' + this.lastDir, true);
+    } else {
+      this.player.stop();
+      // Idle frame based on last direction
+      const idleFrames = { down: 0, left: 3, up: 6, right: 9 };
+      this.player.setFrame(idleFrames[this.lastDir]);
+    }
 
     // ── Resource collection ──────────────────────────────────────────
     this.resourceNodes.forEach(node => {
