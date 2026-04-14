@@ -76,41 +76,46 @@ const STAR_SYSTEMS = {
 };
 
 // ── Ship definitions ─────────────────────────────────────────────────────────
+const _SP = 'assets/sprites/';
+const _VM = _SP + 'Foozle_2DS0011_Void_MainShip/';
+const _F2 = _SP + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/';
+const _F3 = _SP + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/';
+
 const SHIPS = {
   'starter': {
     name: 'Starter Ship',    spriteKey: 'ship-starter',   size: 48,
     hp: 100, shield: 50, speedBonus: 0, cost: 0, pilotReq: 1,
-    path: VOID_MAIN + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Full health.png',
+    path: _VM + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Full health.png',
   },
   'nairan-scout': {
     name: 'Nairan Scout',    spriteKey: 'ship-nairan-scout', size: 64,
     hp: 80, shield: 75, speedBonus: 15, cost: 300, pilotReq: 5,
-    path: ASSET + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Scout - Base.png',
+    path: _F2 + 'Nairan - Scout - Base.png',
   },
   'nairan-fighter': {
     name: 'Nairan Fighter',  spriteKey: 'ship-nairan-fighter', size: 64,
     hp: 120, shield: 80, speedBonus: 5, cost: 500, pilotReq: 8,
-    path: ASSET + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Fighter - Base.png',
+    path: _F2 + 'Nairan - Fighter - Base.png',
   },
   'nautolan-fighter': {
     name: 'Nautolan Fighter', spriteKey: 'ship-nautolan-fighter', size: 64,
     hp: 140, shield: 100, speedBonus: 0, cost: 800, pilotReq: 12,
-    path: ASSET + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Fighter - Base.png',
+    path: _F3 + 'Nautolan Ship - Fighter - Base.png',
   },
   'nairan-frigate': {
     name: 'Nairan Frigate',  spriteKey: 'ship-nairan-frigate', size: 64,
     hp: 180, shield: 120, speedBonus: -5, cost: 1200, pilotReq: 18,
-    path: ASSET + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Frigate - Base.png',
+    path: _F2 + 'Nairan - Frigate - Base.png',
   },
   'nautolan-frigate': {
     name: 'Nautolan Frigate', spriteKey: 'ship-nautolan-frigate', size: 64,
     hp: 200, shield: 150, speedBonus: -10, cost: 2000, pilotReq: 25,
-    path: ASSET + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Frigate - Base.png',
+    path: _F3 + 'Nautolan Ship - Frigate - Base.png',
   },
   'nairan-battlecruiser': {
     name: 'Battlecruiser',   spriteKey: 'ship-nairan-bc', size: 128,
     hp: 300, shield: 200, speedBonus: -20, cost: 5000, pilotReq: 35,
-    path: ASSET + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Battlecruiser - Base.png',
+    path: _F2 + 'Nairan - Battlecruiser - Base.png',
   },
 };
 
