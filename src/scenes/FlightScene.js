@@ -29,6 +29,9 @@ class FlightScene extends Phaser.Scene {
       }
     });
 
+    // Drone sprite (for carrier)
+    this.load.image('drone', _SP + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Support Ship - Base.png');
+
     this.load.spritesheet('ship-engine', VOID_MAIN + 'Main Ship/Main Ship - Engine Effects/PNGs/Main Ship - Engines - Base Engine - Spritesheet.png',
       { frameWidth: 48, frameHeight: 48 });
 
@@ -156,6 +159,27 @@ class FlightScene extends Phaser.Scene {
     this.pilotingTimer = 0;
     this.lastHitTime = 0;
     this.nearPlanet = null;
+
+    // ── Carrier drones ───────────────────────────────────────────────
+    this.drones = [];
+    const shipDef = SHIPS[SpaceState.player.ship];
+    if (shipDef && shipDef.drones) {
+      for (let i = 0; i < shipDef.drones; i++) {
+        const angle = (i / shipDef.drones) * Math.PI * 2;
+        const dx = this.player.x + Math.cos(angle) * 40;
+        const dy = this.player.y + Math.sin(angle) * 40;
+        const drone = this.physics.add.sprite(dx, dy, 'drone');
+        drone.setScale(0.25).setDepth(9).setTint(0x88ccff);
+        drone.setData('orbitAngle', angle);
+        drone.setData('state', 'orbit'); // orbit | attack
+        drone.setData('target', null);
+        drone.setData('fireTimer', 0);
+        this.drones.push(drone);
+
+        // Drones can also hit enemies
+        this.physics.add.overlap(drone, this.enemies, (d, e) => this._droneHitEnemy(d, e));
+      }
+    }
 
     // ── Minimap ──────────────────────────────────────────────────────
     this.minimap = this.add.graphics().setScrollFactor(0).setDepth(100);
@@ -310,6 +334,9 @@ class FlightScene extends Phaser.Scene {
       this._domFloat(this.player.x, this.player.y - 30, 'Game Saved', '#88ff88');
     }
 
+    // ── Drone AI ──────────────────────────────────────────────────────
+    this._updateDrones(time, delta);
+
     // ── Minimap ──────────────────────────────────────────────────────
     this._drawMinimap();
 
@@ -428,6 +455,104 @@ class FlightScene extends Phaser.Scene {
       this.scene.stop();
       this.scene.start('FlightScene');
     });
+  }
+
+  _updateDrones(time, delta) {
+    if (this.drones.length === 0) return;
+    const shipDef = SHIPS[SpaceState.player.ship];
+    const droneRange = (shipDef && shipDef.droneRange) || 250;
+
+    this.drones.forEach(drone => {
+      // Find nearest enemy in range
+      let nearestEnemy = null;
+      let nearestDist = droneRange;
+      this.enemies.children.each(e => {
+        if (!e.active) return;
+        const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearestEnemy = e;
+        }
+      });
+
+      if (nearestEnemy) {
+        // Attack mode — fly toward enemy
+        drone.setData('state', 'attack');
+        const angle = Phaser.Math.Angle.Between(drone.x, drone.y, nearestEnemy.x, nearestEnemy.y);
+        const speed = 130;
+        drone.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+        drone.setAngle(Phaser.Math.RadToDeg(angle) + 90);
+
+        // Drone shoots at enemy
+        let ft = drone.getData('fireTimer') + delta;
+        if (ft >= 600) { // fire every 600ms
+          ft = 0;
+          const dist = Phaser.Math.Distance.Between(drone.x, drone.y, nearestEnemy.x, nearestEnemy.y);
+          if (dist < 120) {
+            const bullet = this.bullets.create(drone.x, drone.y, 'bullet-auto', 0);
+            if (bullet) {
+              bullet.setVelocity(Math.cos(angle) * 350, Math.sin(angle) * 350);
+              bullet.setAngle(Phaser.Math.RadToDeg(angle) + 90);
+              bullet.setDepth(8).setScale(0.5).setTint(0x88ccff);
+            }
+          }
+        }
+        drone.setData('fireTimer', ft);
+      } else {
+        // Orbit mode — circle around player
+        drone.setData('state', 'orbit');
+        let orbitAngle = drone.getData('orbitAngle') + delta * 0.002;
+        drone.setData('orbitAngle', orbitAngle);
+        const orbitDist = 35;
+        const tx = this.player.x + Math.cos(orbitAngle) * orbitDist;
+        const ty = this.player.y + Math.sin(orbitAngle) * orbitDist;
+
+        // Smooth follow
+        drone.setVelocity((tx - drone.x) * 4, (ty - drone.y) * 4);
+        drone.setAngle(this.player.angle);
+      }
+
+      // Leash — don't let drones wander too far from player
+      const dFromPlayer = Phaser.Math.Distance.Between(drone.x, drone.y, this.player.x, this.player.y);
+      if (dFromPlayer > droneRange + 50) {
+        const angle = Phaser.Math.Angle.Between(drone.x, drone.y, this.player.x, this.player.y);
+        drone.setVelocity(Math.cos(angle) * 200, Math.sin(angle) * 200);
+      }
+    });
+  }
+
+  _droneHitEnemy(drone, enemy) {
+    // Contact damage from drones
+    let hp = enemy.getData('hp') - 1;
+    enemy.setData('hp', hp);
+    enemy.setTint(0x8888ff);
+    this.time.delayedCall(80, () => { if (enemy.active) enemy.clearTint(); });
+
+    // Knockback the drone away
+    const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, drone.x, drone.y);
+    drone.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
+
+    if (hp <= 0) {
+      SpaceState.player.credits += 10;
+      SpaceState.skills.combat.totalExp += 15;
+      SpaceState.checkSkillUp('combat');
+      this._domFloat(enemy.x, enemy.y, '+10 cr', '#ddcc44');
+
+      const sx = enemy.getData('spawnX'), sy = enemy.getData('spawnY'), type = enemy.getData('type');
+      this.tweens.add({
+        targets: enemy, alpha: 0, scale: 0.1, duration: 200,
+        onComplete: () => {
+          enemy.destroy();
+          this.time.delayedCall(15000, () => {
+            const e = this.enemies.create(sx, sy, type.key);
+            e.setScale(type.scale).setDepth(5).setAlpha(0);
+            e.setData('hp', type.hp).setData('maxHp', type.hp).setData('speed', type.speed);
+            e.setData('aggro', type.aggro).setData('spawnX', sx).setData('spawnY', sy).setData('type', type);
+            this.tweens.add({ targets: e, alpha: 1, duration: 500 });
+          });
+        },
+      });
+    }
   }
 
   _drawMinimap() {

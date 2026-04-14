@@ -117,6 +117,17 @@ const SHIPS = {
     hp: 300, shield: 200, speedBonus: -20, cost: 5000, pilotReq: 35,
     path: _F2 + 'Nairan - Battlecruiser - Base.png',
   },
+  'nairan-dreadnought': {
+    name: 'Battleship',      spriteKey: 'ship-nairan-dn', size: 128,
+    hp: 500, shield: 300, speedBonus: -35, cost: 10000, pilotReq: 45,
+    path: _F2 + 'Nairan - Dreadnought - Base.png',
+  },
+  'nautolan-carrier': {
+    name: 'Carrier',         spriteKey: 'ship-nautolan-carrier', size: 128,
+    hp: 350, shield: 250, speedBonus: -30, cost: 15000, pilotReq: 50,
+    drones: 4, droneRange: 250,
+    path: _F3 + 'Nautolan Ship - Dreadnought - Base.png',
+  },
 };
 
 // ── Game State ───────────────────────────────────────────────────────────────
@@ -182,9 +193,11 @@ const SpaceState = {
 
   getShipScale() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
-    if (shipDef.size === 128) return 0.6;  // battlecruiser — big
-    if (shipDef.size === 64) return 0.55;  // mid-tier ships
-    return 0.5;                            // starter — small
+    // Battleship/carrier are the biggest
+    if (shipDef === SHIPS['nairan-dreadnought'] || shipDef === SHIPS['nautolan-carrier']) return 0.7;
+    if (shipDef.size === 128) return 0.6;
+    if (shipDef.size === 64) return 0.55;
+    return 0.5;
   },
 
   // Buy a new ship — applies its base stats
