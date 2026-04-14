@@ -301,6 +301,13 @@ function _renderStation(el) {
         </div>
       </div>
       <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
+        <div style="font-size:13px;color:#44ee66;margin-bottom:6px;">REPAIR BAY</div>
+        <div style="display:flex;gap:12px;">
+          ${_repairBtn('hull', p.hp, p.maxHp + SpaceState.getMaxHpBonus(), '#44ee66')}
+          ${_repairBtn('shield', Math.floor(p.shield), p.maxShield + SpaceState.getMaxShieldBonus(), '#4488ff')}
+        </div>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
         <div style="font-size:13px;color:#ff8844;margin-bottom:6px;">WEAPONS</div>
         ${Object.entries(WEAPONS).map(([key, w]) => {
           const equipped = SpaceState.player.weapon === key;
@@ -394,6 +401,46 @@ function buyUpgrade(idx) {
   if (up.stat === 'maxHp') SpaceState.player.hp = SpaceState.player.maxHp;
   if (up.stat === 'maxShield') SpaceState.player.shield = SpaceState.player.maxShield;
 
+  _renderStation();
+}
+
+function _repairBtn(type, current, max, color) {
+  const missing = max - current;
+  if (missing <= 0) return `<div style="flex:1;text-align:center;font-size:11px;color:#555;padding:6px;background:#111;border-radius:4px;">${type === 'hull' ? 'Hull' : 'Shields'}: Full</div>`;
+  const costPer = type === 'hull' ? 2 : 1; // hull costs more to repair
+  const cost = Math.ceil(missing * costPer);
+  const canAfford = SpaceState.player.credits >= cost;
+  return `<div style="flex:1;">
+    <div style="font-size:11px;color:${color};margin-bottom:3px;">${type === 'hull' ? 'Hull' : 'Shields'}: ${current}/${max}</div>
+    <button onclick="repair('${type}')" ${!canAfford ? 'disabled' : ''} style="width:100%;background:${canAfford ? '#1a2a1a' : '#222'};color:${canAfford ? color : '#555'};border:1px solid ${canAfford ? color : '#333'};border-radius:4px;padding:4px;cursor:${canAfford ? 'pointer' : 'default'};font-size:11px;">Repair Full (${cost}cr)</button>
+  </div>`;
+}
+
+function repair(type) {
+  const p = SpaceState.player;
+  if (type === 'hull') {
+    const max = p.maxHp + SpaceState.getMaxHpBonus();
+    const missing = max - p.hp;
+    if (missing <= 0) return;
+    const cost = Math.ceil(missing * 2);
+    if (p.credits < cost) return;
+    p.credits -= cost;
+    p.hp = max;
+    // Hull Integrity XP from repairing
+    SpaceState.skills.hullIntegrity.totalExp += Math.floor(missing * 0.5);
+    SpaceState.checkSkillUp('hullIntegrity');
+  } else {
+    const max = p.maxShield + SpaceState.getMaxShieldBonus();
+    const missing = max - p.shield;
+    if (missing <= 0) return;
+    const cost = Math.ceil(missing * 1);
+    if (p.credits < cost) return;
+    p.credits -= cost;
+    p.shield = max;
+    // Shields XP from repairing
+    SpaceState.skills.shields.totalExp += Math.floor(missing * 0.3);
+    SpaceState.checkSkillUp('shields');
+  }
   _renderStation();
 }
 
