@@ -19,11 +19,28 @@ const config = {
 
 const game = new Phaser.Game(config);
 
-// Ensure HUD overlay is on top
-requestAnimationFrame(() => {
+// Sync HUD overlay to canvas size/position
+function syncOverlay() {
   const canvas = document.querySelector('canvas');
-  if (canvas) { canvas.style.position = 'relative'; canvas.style.zIndex = '1'; }
-});
+  if (!canvas) return;
+  canvas.style.position = 'relative';
+  canvas.style.zIndex = '1';
+
+  const overlay = document.getElementById('hud-overlay');
+  const touch = document.getElementById('touch-controls');
+  // Match overlay to canvas dimensions
+  overlay.style.width = canvas.style.width || canvas.width + 'px';
+  overlay.style.height = canvas.style.height || canvas.height + 'px';
+  if (touch) {
+    touch.style.width = overlay.style.width;
+    touch.style.height = overlay.style.height;
+  }
+}
+
+// Sync on start and whenever window resizes
+requestAnimationFrame(syncOverlay);
+window.addEventListener('resize', () => requestAnimationFrame(syncOverlay));
+game.scale.on('resize', () => requestAnimationFrame(syncOverlay));
 
 // ── Mobile touch controls ────────────────────────────────────────────────────
 const touchState = { ax: 0, ay: 0, fire: false, action: false, inv: false };
