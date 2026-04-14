@@ -165,7 +165,7 @@ class FlightScene extends Phaser.Scene {
     const droneCount = SpaceState.getDroneCount();
     if (droneCount > 0) {
       for (let i = 0; i < droneCount; i++) {
-        const angle = (i / shipDef.drones) * Math.PI * 2;
+        const angle = (i / droneCount) * Math.PI * 2;
         const dx = this.player.x + Math.cos(angle) * 40;
         const dy = this.player.y + Math.sin(angle) * 40;
         const drone = this.physics.add.sprite(dx, dy, 'drone');
