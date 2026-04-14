@@ -1,15 +1,17 @@
 SpaceState.load();
 
+const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
 const config = {
   type: Phaser.AUTO,
   width: 480,
   height: 640,
   parent: 'game-wrapper',
   pixelArt: true,
-  scale: {
+  scale: isMobile ? {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-  },
+  } : {},
   physics: {
     default: 'arcade',
     arcade: { debug: false },
