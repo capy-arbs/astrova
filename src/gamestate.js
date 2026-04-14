@@ -182,10 +182,9 @@ const SpaceState = {
 
   getShipScale() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
-    // Scale larger ships down a bit so they're not huge
-    if (shipDef.size === 128) return 0.5;
-    if (shipDef.size === 64) return 0.7;
-    return 1.0;
+    if (shipDef.size === 128) return 0.6;  // battlecruiser — big
+    if (shipDef.size === 64) return 0.55;  // mid-tier ships
+    return 0.5;                            // starter — small
   },
 
   // Buy a new ship — applies its base stats
