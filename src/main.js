@@ -253,7 +253,7 @@ function _renderStation(el) {
 
   const cargo = SpaceState.cargo;
   const cargoKeys = Object.keys(cargo);
-  const discount = SpaceState.getTradeDiscount();
+  const discount = SpaceState.getSellMultiplier(); // unused but kept for reference
 
   // Sell buttons
   let sellHtml = '';
