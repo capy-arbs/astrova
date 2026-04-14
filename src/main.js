@@ -226,7 +226,12 @@ function hideCargoScreen() {
 let _stationOpen = false;
 
 function showStationScreen() {
-  if (_stationOpen) return;
+  // Clean up stale state
+  if (_stationOpen) {
+    const existing = document.getElementById('station-screen');
+    if (!existing) _stationOpen = false;
+    else return;
+  }
   _stationOpen = true;
 
   const el = document.createElement('div');
