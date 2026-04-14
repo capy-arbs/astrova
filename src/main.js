@@ -380,8 +380,13 @@ function buyUpgrade(idx) {
   _renderStation();
 }
 
+let _shipChanged = false;
+
 function buyShip(key) {
-  if (SpaceState.buyShip(key)) _renderStation();
+  if (SpaceState.buyShip(key)) {
+    _shipChanged = true;
+    _renderStation();
+  }
 }
 
 function switchShip(key) {
@@ -392,6 +397,7 @@ function switchShip(key) {
   SpaceState.player.hp = def.hp;
   SpaceState.player.maxShield = def.shield;
   SpaceState.player.shield = def.shield;
+  _shipChanged = true;
   _renderStation();
 }
 
@@ -412,6 +418,16 @@ function hideStationScreen() {
   _stationOpen = false;
   const el = document.getElementById('station-screen');
   if (el) el.remove();
+
+  // If ship changed, restart scene so drones/visuals update
+  if (_shipChanged) {
+    _shipChanged = false;
+    const scene = game.scene.getScenes(true)[0];
+    if (scene && scene.scene.key === 'FlightScene') {
+      SpaceState.spaceReturn = { x: scene.player.x, y: scene.player.y };
+      scene.scene.restart();
+    }
+  }
 }
 
 // ── Game Over Screen (DOM) ───────────────────────────────────────────────────
