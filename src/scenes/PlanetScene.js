@@ -125,11 +125,16 @@ class PlanetScene extends Phaser.Scene {
         node.sprite.destroy();
         node.glow.destroy();
 
-        // Add to cargo
-        if (!SpaceState.cargo) SpaceState.cargo = {};
-        SpaceState.cargo[node.resource] = (SpaceState.cargo[node.resource] || 0) + 1;
+        // Mining bonus: extra resources at higher levels
+        const amount = SpaceState.getMiningBonus();
+        SpaceState.addCargo(node.resource, amount);
 
-        this._domFloat(node.x, node.y, '+1 ' + this._resourceName(node.resource), this._resourceColorHex(node.resource));
+        // Mining XP
+        SpaceState.skills.mining.totalExp += 12;
+        const gained = SpaceState.checkSkillUp('mining');
+
+        this._domFloat(node.x, node.y, `+${amount} ${this._resourceName(node.resource)}`, this._resourceColorHex(node.resource));
+        if (gained > 0) this._domFloat(node.x, node.y - 16, `Mining LV${SpaceState.skills.mining.level}!`, '#ffee44');
       }
     });
 

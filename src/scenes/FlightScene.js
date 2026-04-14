@@ -60,6 +60,20 @@ class FlightScene extends Phaser.Scene {
       return sprite;
     });
 
+    // ── Space Station ────────────────────────────────────────────────
+    this.stationX = 1500;
+    this.stationY = 1500;
+    // Draw station as a simple geometric shape (no sprite needed)
+    const stGfx = this.add.graphics();
+    stGfx.fillStyle(0x556677);
+    stGfx.fillRect(this.stationX - 16, this.stationY - 16, 32, 32);
+    stGfx.fillStyle(0x8899aa);
+    stGfx.fillRect(this.stationX - 8, this.stationY - 20, 16, 40);
+    stGfx.fillRect(this.stationX - 20, this.stationY - 8, 40, 16);
+    stGfx.fillStyle(0xaabbcc);
+    stGfx.fillCircle(this.stationX, this.stationY, 6);
+    stGfx.setDepth(0.5);
+
     // ── Player ship ──────────────────────────────────────────────────
     // Spawn at return position if coming back from planet, else center
     const spawnX = SpaceState.spaceReturn ? SpaceState.spaceReturn.x : WORLD_SIZE / 2;
@@ -113,9 +127,12 @@ class FlightScene extends Phaser.Scene {
     };
 
     this.isInvincible = false;
-    this.facingAngle = -Math.PI / 2; // facing up initially
+    this.facingAngle = -Math.PI / 2;
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.iKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
+    this.sKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
     this.nearPlanet = null;
+    this.pilotingTimer = 0;
   }
 
   update(time, delta) {
@@ -141,14 +158,27 @@ class FlightScene extends Phaser.Scene {
     if (left)  ax = -1;
     if (right) ax = 1;
 
+    // Ship speed from piloting skill
+    const shipSpeed = SpaceState.getShipSpeed();
+    this.player.setMaxVelocity(shipSpeed);
+
     if (ax !== 0 || ay !== 0) {
-      // Normalize diagonal movement
       const len = Math.sqrt(ax * ax + ay * ay);
       ax /= len; ay /= len;
       this.player.setAcceleration(ax * 500, ay * 500);
       this.facingAngle = Math.atan2(ay, ax);
+
+      // Piloting XP from flying
+      this.pilotingTimer += delta;
+      if (this.pilotingTimer >= 3000) {
+        this.pilotingTimer -= 3000;
+        SpaceState.skills.piloting.totalExp += 4;
+        const gained = SpaceState.checkSkillUp('piloting');
+        if (gained > 0) this._domFloat(this.player.x, this.player.y - 30, `Piloting LV${SpaceState.skills.piloting.level}!`, '#44ddff');
+      }
     } else {
       this.player.setAcceleration(0, 0);
+      this.pilotingTimer = 0;
     }
 
     // Rotate ship to face movement direction
@@ -207,7 +237,35 @@ class FlightScene extends Phaser.Scene {
 
     // ── Land on planet ───────────────────────────────────────────────
     if (this.nearPlanet && Phaser.Input.Keyboard.JustDown(this.eKey)) {
+      // Exploration XP for new planets
+      if (!SpaceState.discoveredPlanets.includes(this.nearPlanet.name)) {
+        SpaceState.discoveredPlanets.push(this.nearPlanet.name);
+        SpaceState.skills.exploration.totalExp += 50;
+        const gained = SpaceState.checkSkillUp('exploration');
+        this._domFloat(this.player.x, this.player.y - 30, `Discovered ${this.nearPlanet.name}! +50 XP`, '#ddaa44');
+        if (gained > 0) this._domFloat(this.player.x, this.player.y - 50, `Exploration LV${SpaceState.skills.exploration.level}!`, '#ffee44');
+      }
       this._landOnPlanet(this.nearPlanet);
+    }
+
+    // ── Station proximity ──────────────────────────────────────────────
+    const stDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.stationX, this.stationY);
+    if (stDist < 50) {
+      document.getElementById('hud-location').textContent = 'Outpost Alpha — [E] to dock';
+      if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+        showStationScreen();
+      }
+    }
+
+    // ── Cargo screen ─────────────────────────────────────────────────
+    if (Phaser.Input.Keyboard.JustDown(this.iKey)) {
+      showCargoScreen();
+    }
+
+    // ── Save ─────────────────────────────────────────────────────────
+    if (Phaser.Input.Keyboard.JustDown(this.sKey)) {
+      SpaceState.save();
+      this._domFloat(this.player.x, this.player.y - 30, 'Game Saved', '#88ff88');
     }
 
     // ── HUD ──────────────────────────────────────────────────────────
@@ -267,14 +325,18 @@ class FlightScene extends Phaser.Scene {
   _bulletHitEnemy(bullet, enemy) {
     bullet.destroy();
 
-    let hp = enemy.getData('hp') - 1;
+    const dmg = SpaceState.getBulletDamage();
+    let hp = enemy.getData('hp') - dmg;
     enemy.setData('hp', hp);
     enemy.setTint(0xff4444);
     this.time.delayedCall(80, () => { if (enemy.active) enemy.clearTint(); });
 
     if (hp <= 0) {
       SpaceState.player.credits += 10;
+      SpaceState.skills.combat.totalExp += 15;
+      const combatGain = SpaceState.checkSkillUp('combat');
       this._domFloat(enemy.x, enemy.y, '+10 credits', '#ddcc44');
+      if (combatGain > 0) this._domFloat(enemy.x, enemy.y - 20, `Combat LV${SpaceState.skills.combat.level}!`, '#ffee44');
 
       const sx = enemy.getData('spawnX');
       const sy = enemy.getData('spawnY');
