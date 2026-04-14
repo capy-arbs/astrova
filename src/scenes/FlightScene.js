@@ -162,9 +162,9 @@ class FlightScene extends Phaser.Scene {
 
     // ── Carrier drones ───────────────────────────────────────────────
     this.drones = [];
-    const shipDef = SHIPS[SpaceState.player.ship];
-    if (shipDef && shipDef.drones) {
-      for (let i = 0; i < shipDef.drones; i++) {
+    const droneCount = SpaceState.getDroneCount();
+    if (droneCount > 0) {
+      for (let i = 0; i < droneCount; i++) {
         const angle = (i / shipDef.drones) * Math.PI * 2;
         const dx = this.player.x + Math.cos(angle) * 40;
         const dy = this.player.y + Math.sin(angle) * 40;
@@ -202,7 +202,7 @@ class FlightScene extends Phaser.Scene {
     // ── Shield regen ─────────────────────────────────────────────────
     const p = SpaceState.player;
     if (p.shield < p.maxShield && (time - this.lastHitTime) > SHIELD_REGEN_DELAY) {
-      p.shield = Math.min(p.maxShield, p.shield + SHIELD_REGEN_RATE * (delta / 1000));
+      p.shield = Math.min(p.maxShield, p.shield + SpaceState.getShieldRegen() * (delta / 1000));
     }
 
     // ── Ship damage visual ───────────────────────────────────────────
@@ -280,9 +280,20 @@ class FlightScene extends Phaser.Scene {
 
     // ── Planet proximity ─────────────────────────────────────────────
     this.nearPlanet = null;
+    const planetRange = SpaceState.getPlanetDetectRange();
     for (let i = 0; i < this.planetSprites.length; i++) {
-      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, this.planetSprites[i].x, this.planetSprites[i].y) < 80) {
+      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, this.planetSprites[i].x, this.planetSprites[i].y) < planetRange) {
         this.nearPlanet = this.planetData[i]; break;
+      }
+    }
+
+    // Scanning XP passively while exploring (near planets or moving through new areas)
+    if (this.nearPlanet) {
+      this._scanTimer = (this._scanTimer || 0) + delta;
+      if (this._scanTimer >= 2000) {
+        this._scanTimer -= 2000;
+        SpaceState.skills.scanning.totalExp += 5;
+        SpaceState.checkSkillUp('scanning');
       }
     }
 
@@ -366,6 +377,11 @@ class FlightScene extends Phaser.Scene {
   _jumpToSystem(targetSystem) {
     SpaceState.currentSystem = targetSystem;
     SpaceState.spaceReturn = null;
+
+    // Warp Drive XP
+    SpaceState.skills.warpDrive.totalExp += 30;
+    SpaceState.checkSkillUp('warpDrive');
+
     SpaceState.save();
     this.cameras.main.fadeOut(800, 255, 255, 255); // white flash for hyperspace
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.restart());
@@ -400,6 +416,18 @@ class FlightScene extends Phaser.Scene {
     enemy.setTint(0xff4444);
     this.time.delayedCall(80, () => { if (enemy.active) enemy.clearTint(); });
 
+    // Gunnery XP per hit
+    SpaceState.skills.gunnery.totalExp += 5;
+    const gunneryGain = SpaceState.checkSkillUp('gunnery');
+    if (gunneryGain > 0) this._domFloat(this.player.x, this.player.y - 40, `Gunnery LV${SpaceState.skills.gunnery.level}!`, '#ff8844');
+
+    // Targeting XP for longer range hits
+    const hitDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+    if (hitDist > 150) {
+      SpaceState.skills.targeting.totalExp += 3;
+      SpaceState.checkSkillUp('targeting');
+    }
+
     if (hp <= 0) {
       SpaceState.player.credits += 10;
       SpaceState.skills.combat.totalExp += 15;
@@ -432,9 +460,17 @@ class FlightScene extends Phaser.Scene {
     if (p.shield > 0) {
       p.shield = Math.max(0, p.shield - 15);
       this._domFloat(player.x, player.y, '-15 shield', '#6699ff');
+      // Shields XP from absorbing damage
+      SpaceState.skills.shields.totalExp += 8;
+      const sg = SpaceState.checkSkillUp('shields');
+      if (sg > 0) this._domFloat(player.x, player.y - 20, `Shields LV${SpaceState.skills.shields.level}!`, '#4488ff');
     } else {
       p.hp = Math.max(0, p.hp - 20);
       this._domFloat(player.x, player.y, '-20 hull', '#ff4444');
+      // Hull Integrity XP from taking hull damage
+      SpaceState.skills.hullIntegrity.totalExp += 10;
+      const hg = SpaceState.checkSkillUp('hullIntegrity');
+      if (hg > 0) this._domFloat(player.x, player.y - 20, `Hull Integrity LV${SpaceState.skills.hullIntegrity.level}!`, '#cc8844');
     }
 
     this.isInvincible = true;
@@ -522,8 +558,13 @@ class FlightScene extends Phaser.Scene {
   }
 
   _droneHitEnemy(drone, enemy) {
-    // Contact damage from drones
-    let hp = enemy.getData('hp') - 1;
+    // Contact damage from drones (scales with Drone Command)
+    const droneDmg = SpaceState.getDroneDamage();
+    let hp = enemy.getData('hp') - droneDmg;
+
+    // Drone Command XP
+    SpaceState.skills.droneCommand.totalExp += 4;
+    SpaceState.checkSkillUp('droneCommand');
     enemy.setData('hp', hp);
     enemy.setTint(0x8888ff);
     this.time.delayedCall(80, () => { if (enemy.active) enemy.clearTint(); });

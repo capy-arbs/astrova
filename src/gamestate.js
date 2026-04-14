@@ -144,12 +144,25 @@ const SpaceState = {
   },
 
   skills: {
-    piloting:    { level: 1, totalExp: 0 },
-    combat:      { level: 1, totalExp: 0 },
-    mining:      { level: 1, totalExp: 0 },
-    engineering: { level: 1, totalExp: 0 },
-    trading:     { level: 1, totalExp: 0 },
-    exploration: { level: 1, totalExp: 0 },
+    // Combat
+    combat:        { level: 1, totalExp: 0 },
+    gunnery:       { level: 1, totalExp: 0 },
+    droneCommand:  { level: 1, totalExp: 0 },
+    targeting:     { level: 1, totalExp: 0 },
+    // Ship
+    piloting:      { level: 1, totalExp: 0 },
+    shields:       { level: 1, totalExp: 0 },
+    hullIntegrity: { level: 1, totalExp: 0 },
+    warpDrive:     { level: 1, totalExp: 0 },
+    // Economy
+    mining:        { level: 1, totalExp: 0 },
+    engineering:   { level: 1, totalExp: 0 },
+    trading:       { level: 1, totalExp: 0 },
+    crafting:      { level: 1, totalExp: 0 },
+    // Exploration
+    exploration:   { level: 1, totalExp: 0 },
+    scanning:      { level: 1, totalExp: 0 },
+    reputation:    { level: 1, totalExp: 0 },
   },
 
   currentSystem: 'sol',
@@ -166,6 +179,7 @@ const SpaceState = {
     return gained;
   },
 
+  // ── Derived stats from skills ────────────────────────────────────
   getShipSpeed() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
     return 150 + (this.skills.piloting.level - 1) * 2 + shipDef.speedBonus;
@@ -174,9 +188,44 @@ const SpaceState = {
     const wep = WEAPONS[this.player.weapon] || WEAPONS['auto-cannon'];
     return wep.damage + this.player.baseDamage - 1 + Math.floor((this.skills.combat.level - 1) * 0.3);
   },
-  getFireRate()     { return (WEAPONS[this.player.weapon] || WEAPONS['auto-cannon']).fireRate; },
-  getMiningBonus()  { return 1 + Math.floor(this.skills.mining.level / 10); },
-  getTradeDiscount(){ return Math.min(0.3, (this.skills.trading.level - 1) * 0.006); },
+  getFireRate() {
+    const wep = WEAPONS[this.player.weapon] || WEAPONS['auto-cannon'];
+    const gunneryBonus = 1 - Math.min(0.4, (this.skills.gunnery.level - 1) * 0.01); // up to 40% faster
+    return Math.floor(wep.fireRate * gunneryBonus);
+  },
+  getShieldRegen() {
+    return 2 + (this.skills.shields.level - 1) * 0.1; // base 2 + 0.1 per level
+  },
+  getMaxShieldBonus() {
+    return (this.skills.shields.level - 1) * 1; // +1 max shield per level
+  },
+  getMaxHpBonus() {
+    return (this.skills.hullIntegrity.level - 1) * 2; // +2 max HP per level
+  },
+  getDroneCount() {
+    const shipDef = SHIPS[this.player.ship];
+    if (!shipDef || !shipDef.drones) return 0;
+    const baseDrones = shipDef.drones;
+    const bonusDrones = Math.floor(this.skills.droneCommand.level / 15); // +1 at 15, 30, 45
+    return baseDrones + bonusDrones;
+  },
+  getDroneDamage() {
+    return 1 + Math.floor((this.skills.droneCommand.level - 1) * 0.2);
+  },
+  getMiningBonus() {
+    return 1 + Math.floor(this.skills.mining.level / 10);
+  },
+  getSellMultiplier() {
+    const tradeBonus = Math.min(0.3, (this.skills.trading.level - 1) * 0.006);
+    const repBonus = Math.min(0.2, (this.skills.reputation.level - 1) * 0.004);
+    return 1 + tradeBonus + repBonus; // up to 1.5x sell price
+  },
+  getPlanetDetectRange() {
+    return 80 + (this.skills.exploration.level - 1) * 2; // base 80, grows with level
+  },
+  getMinimapRevealRange() {
+    return 200 + (this.skills.scanning.level - 1) * 5; // how far minimap shows detail
+  },
 
   getShipSpriteKey() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];

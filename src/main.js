@@ -152,12 +152,21 @@ function showCargoScreen() {
 
   const skills = SpaceState.skills;
   const skillList = [
-    { name: 'Piloting',     key: 'piloting',    color: '#44ddff' },
-    { name: 'Combat',       key: 'combat',      color: '#ff4444' },
-    { name: 'Mining',       key: 'mining',      color: '#ccaa44' },
-    { name: 'Engineering',  key: 'engineering',  color: '#aaaacc' },
-    { name: 'Trading',      key: 'trading',     color: '#44cc88' },
-    { name: 'Exploration',  key: 'exploration', color: '#ddaa44' },
+    { name: 'Combat',        key: 'combat',        color: '#ff4444', cat: 'COMBAT' },
+    { name: 'Gunnery',       key: 'gunnery',       color: '#ff8844' },
+    { name: 'Drone Command', key: 'droneCommand',  color: '#88ccff' },
+    { name: 'Targeting',     key: 'targeting',     color: '#ff6688' },
+    { name: 'Piloting',      key: 'piloting',      color: '#44ddff', cat: 'SHIP' },
+    { name: 'Shields',       key: 'shields',       color: '#4488ff' },
+    { name: 'Hull Integrity',key: 'hullIntegrity', color: '#cc8844' },
+    { name: 'Warp Drive',    key: 'warpDrive',     color: '#aa66ff' },
+    { name: 'Mining',        key: 'mining',        color: '#ccaa44', cat: 'ECONOMY' },
+    { name: 'Engineering',   key: 'engineering',   color: '#aaaacc' },
+    { name: 'Trading',       key: 'trading',       color: '#44cc88' },
+    { name: 'Crafting',      key: 'crafting',      color: '#ddaa66' },
+    { name: 'Exploration',   key: 'exploration',   color: '#ddaa44', cat: 'EXPLORE' },
+    { name: 'Scanning',      key: 'scanning',      color: '#66ddaa' },
+    { name: 'Reputation',    key: 'reputation',    color: '#ffcc44' },
   ];
 
   const skillHtml = skillList.map(sk => {
@@ -166,11 +175,12 @@ function showCargoScreen() {
     const next = s.level < MAX_LEVEL ? XP_TABLE[s.level] : cur;
     const range = next - cur;
     const pct = range > 0 ? ((s.totalExp - cur) / range) * 100 : 100;
-    return `<div style="margin:4px 0;">
-      <div style="display:flex;justify-content:space-between;font-size:12px;">
+    const catHeader = sk.cat ? `<div style="font-size:10px;color:#555;margin-top:6px;border-top:1px solid #222;padding-top:4px;">${sk.cat}</div>` : '';
+    return `${catHeader}<div style="margin:2px 0;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;">
         <span style="color:${sk.color}">${sk.name}</span><span style="color:#aaa">LV ${s.level}</span>
       </div>
-      <div style="width:100%;height:4px;background:#1a1a2a;border-radius:2px;margin-top:2px;">
+      <div style="width:100%;height:3px;background:#1a1a2a;border-radius:2px;margin-top:1px;">
         <div style="width:${pct}%;height:100%;background:#445;border-radius:2px;"></div>
       </div>
     </div>`;
@@ -248,7 +258,7 @@ function _renderStation(el) {
     sellHtml = cargoKeys.map(key => {
       const def = RESOURCE_DEFS[key] || { name: key, color: '#fff', value: 0 };
       const qty = cargo[key];
-      const price = def.value;
+      const price = Math.floor(def.value * SpaceState.getSellMultiplier());
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #222;">
         <span style="color:${def.color};font-size:12px;">${def.name} x${qty}</span>
         <button onclick="sellCargo('${key}')" style="background:#2a3a2a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;">Sell (${price}cr)</button>
@@ -256,7 +266,8 @@ function _renderStation(el) {
     }).join('');
   }
 
-  const sellAllValue = cargoKeys.reduce((s, k) => s + (cargo[k] * (RESOURCE_DEFS[k]?.value || 0)), 0);
+  const mult = SpaceState.getSellMultiplier();
+  const sellAllValue = cargoKeys.reduce((s, k) => s + (cargo[k] * Math.floor((RESOURCE_DEFS[k]?.value || 0) * mult)), 0);
 
   // Upgrade buttons
   const engLevel = SpaceState.skills.engineering.level;
@@ -332,13 +343,16 @@ function _renderStation(el) {
 function sellCargo(key) {
   const def = RESOURCE_DEFS[key];
   if (!def || !SpaceState.cargo[key]) return;
-  SpaceState.player.credits += def.value;
+  const sellPrice = Math.floor(def.value * SpaceState.getSellMultiplier());
+  SpaceState.player.credits += sellPrice;
   SpaceState.cargo[key]--;
   if (SpaceState.cargo[key] <= 0) delete SpaceState.cargo[key];
 
-  // Trading XP
+  // Trading + Reputation XP
   SpaceState.skills.trading.totalExp += 5;
+  SpaceState.skills.reputation.totalExp += 2;
   SpaceState.checkSkillUp('trading');
+  SpaceState.checkSkillUp('reputation');
 
   _renderStation();
 }
@@ -346,15 +360,18 @@ function sellCargo(key) {
 function sellAllCargo() {
   const keys = Object.keys(SpaceState.cargo);
   let total = 0;
+  const mult = SpaceState.getSellMultiplier();
   keys.forEach(key => {
     const def = RESOURCE_DEFS[key];
-    if (def) total += def.value * SpaceState.cargo[key];
+    if (def) total += Math.floor(def.value * mult) * SpaceState.cargo[key];
   });
   SpaceState.player.credits += total;
 
-  // Trading XP for bulk sell
+  // Trading + Reputation XP for bulk sell
   SpaceState.skills.trading.totalExp += keys.length * 8;
+  SpaceState.skills.reputation.totalExp += keys.length * 3;
   SpaceState.checkSkillUp('trading');
+  SpaceState.checkSkillUp('reputation');
 
   SpaceState.cargo = {};
   _renderStation();
