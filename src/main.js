@@ -276,7 +276,7 @@ function _renderStation(el) {
 
   el.innerHTML = `
     <div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);" onclick="hideStationScreen()"></div>
-    <div style="position:relative;background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:20px;min-width:500px;max-width:600px;color:#ddd;">
+    <div style="position:relative;background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:20px;min-width:400px;max-width:600px;max-height:90vh;overflow-y:auto;color:#ddd;">
       <h2 style="text-align:center;font-size:16px;color:#aabbcc;margin-bottom:12px;border-bottom:1px solid #2a2a3a;padding-bottom:8px;">OUTPOST ALPHA</h2>
       <div style="display:flex;gap:20px;">
         <div style="flex:1;">
