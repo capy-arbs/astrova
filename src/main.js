@@ -150,6 +150,21 @@ function showCargoScreen() {
 
   const totalValue = cargoKeys.reduce((s, k) => s + (cargo[k] * (RESOURCE_DEFS[k]?.value || 0)), 0);
 
+  // Crafted items
+  const items = SpaceState.items || {};
+  const itemKeys = Object.keys(items).filter(k => items[k] > 0);
+  let itemsHtml = '';
+  if (itemKeys.length > 0) {
+    itemsHtml = '<div style="margin-top:8px;border-top:1px solid #333;padding-top:4px;font-size:11px;color:#666;">ITEMS</div>';
+    itemsHtml += itemKeys.map(name => {
+      const recipe = CRAFT_RECIPES.find(r => r.name === name);
+      return `<div style="display:flex;justify-content:space-between;padding:2px 0;">
+        <span style="color:#ddaa66">${name} x${items[name]}</span>
+        <button onclick="useItem('${name}')" style="background:#2a2a1a;color:#ddaa66;border:1px solid #886622;border-radius:3px;padding:1px 6px;cursor:pointer;font-size:10px;">Use</button>
+      </div>`;
+    }).join('');
+  }
+
   const skills = SpaceState.skills;
   const skillList = [
     { name: 'Combat',        key: 'combat',        color: '#ff4444', cat: 'COMBAT' },
@@ -195,6 +210,7 @@ function showCargoScreen() {
           <div style="font-size:13px;color:#666;margin-bottom:6px;">CARGO HOLD</div>
           ${cargoHtml}
           <div style="margin-top:6px;font-size:12px;color:#666;">Total value: <span style="color:#ddcc44">${totalValue} cr</span></div>
+          ${itemsHtml}
         </div>
         <div style="flex:1;">
           <div style="font-size:13px;color:#666;margin-bottom:6px;">SKILLS</div>
@@ -340,6 +356,26 @@ function _renderStation(el) {
           </div>`;
         }).join('')}
       </div>
+      <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
+        <div style="font-size:13px;color:#ddaa66;margin-bottom:6px;">CRAFTING</div>
+        ${CRAFT_RECIPES.map((r, i) => {
+          const hasLevel = SpaceState.skills.crafting.level >= r.craftLevel;
+          const hasIngredients = Object.entries(r.ingredients).every(([k, qty]) => (SpaceState.cargo[k] || 0) >= qty);
+          const canCraft = hasLevel && hasIngredients;
+          const ingText = Object.entries(r.ingredients).map(([k, qty]) => {
+            const have = SpaceState.cargo[k] || 0;
+            return `<span style="color:${have >= qty ? '#888' : '#ff4444'}">${RESOURCE_DEFS[k]?.name || k} ${have}/${qty}</span>`;
+          }).join(', ');
+          return `<div style="padding:3px 0;border-bottom:1px solid #222;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:12px;color:${canCraft ? '#ddaa66' : '#666'};">${r.name}</span>
+              <button onclick="craftItem(${i})" ${!canCraft?'disabled':''} style="background:${canCraft?'#2a2a1a':'#222'};color:${canCraft?'#ddaa66':'#555'};border:1px solid ${canCraft?'#886622':'#333'};border-radius:4px;padding:2px 8px;cursor:${canCraft?'pointer':'default'};font-size:11px;">Craft</button>
+            </div>
+            <div style="font-size:10px;color:#555;">${r.desc} ${!hasLevel ? '(Craft LV' + r.craftLevel + ')' : ''}</div>
+            <div style="font-size:9px;color:#444;">${ingText}</div>
+          </div>`;
+        }).join('')}
+      </div>
       <div style="text-align:center;color:#ddcc44;font-size:13px;margin-top:12px;">Credits: ${SpaceState.player.credits}</div>
       <div style="text-align:center;color:#445;font-size:11px;margin-top:4px;">[ESC] to undock</div>
     </div>`;
@@ -400,6 +436,47 @@ function buyUpgrade(idx) {
   if (up.stat === 'maxShield') SpaceState.player.shield = SpaceState.player.maxShield;
 
   _renderStation();
+}
+
+function craftItem(idx) {
+  const recipe = CRAFT_RECIPES[idx];
+  if (!recipe) return;
+  if (SpaceState.skills.crafting.level < recipe.craftLevel) return;
+  // Check ingredients
+  for (const [key, qty] of Object.entries(recipe.ingredients)) {
+    if ((SpaceState.cargo[key] || 0) < qty) return;
+  }
+  // Consume ingredients
+  for (const [key, qty] of Object.entries(recipe.ingredients)) {
+    SpaceState.removeCargo(key, qty);
+  }
+  // Add crafted item
+  if (!SpaceState.items) SpaceState.items = {};
+  SpaceState.items[recipe.name] = (SpaceState.items[recipe.name] || 0) + 1;
+  // Crafting XP
+  SpaceState.skills.crafting.totalExp += recipe.xp;
+  SpaceState.checkSkillUp('crafting');
+  _renderStation();
+}
+
+function useItem(name) {
+  if (!SpaceState.items[name] || SpaceState.items[name] <= 0) return;
+  const recipe = CRAFT_RECIPES.find(r => r.name === name);
+  if (!recipe) return;
+
+  SpaceState.items[name]--;
+  if (SpaceState.items[name] <= 0) delete SpaceState.items[name];
+
+  const p = SpaceState.player;
+  if (recipe.effect === 'heal') {
+    p.hp = Math.min(p.maxHp + SpaceState.getMaxHpBonus(), p.hp + recipe.amount);
+  } else if (recipe.effect === 'shield') {
+    p.shield = Math.min(p.maxShield + SpaceState.getMaxShieldBonus(), p.shield + recipe.amount);
+  } else if (recipe.effect === 'speed' || recipe.effect === 'damage') {
+    SpaceState.activeBuff = { effect: recipe.effect, amount: recipe.amount, duration: recipe.duration, timer: recipe.duration };
+  }
+  // Re-render whichever screen is open
+  if (_cargoOpen) { hideCargoScreen(); showCargoScreen(); }
 }
 
 function _repairBtn(type, current, max, color) {

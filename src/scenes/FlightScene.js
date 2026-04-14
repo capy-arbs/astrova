@@ -104,6 +104,27 @@ class FlightScene extends Phaser.Scene {
       return { ...g, gfx };
     });
 
+    // ── Space objects (derelicts, asteroid fields) ─────────────────
+    this.spaceObjects = (SPACE_OBJECTS[SpaceState.currentSystem] || []).map(obj => {
+      const gfx = this.add.graphics();
+      if (obj.type === 'derelict') {
+        gfx.fillStyle(0x666677); gfx.fillRect(obj.x - 10, obj.y - 6, 20, 12);
+        gfx.fillStyle(0x555566); gfx.fillRect(obj.x - 6, obj.y - 10, 12, 20);
+        gfx.fillStyle(0x444455); gfx.fillCircle(obj.x, obj.y, 4);
+      } else {
+        // Asteroid field — scatter small rocks
+        for (let i = 0; i < 8; i++) {
+          const ax = obj.x + Phaser.Math.Between(-30, 30);
+          const ay = obj.y + Phaser.Math.Between(-30, 30);
+          const size = Phaser.Math.Between(3, 7);
+          gfx.fillStyle(Phaser.Math.Between(0, 1) ? 0x887766 : 0x776655);
+          gfx.fillCircle(ax, ay, size);
+        }
+      }
+      gfx.setDepth(0.5);
+      return { ...obj, collected: false };
+    });
+
     // ── Player ship ──────────────────────────────────────────────────
     const spawnX = SpaceState.spaceReturn ? SpaceState.spaceReturn.x : WORLD_SIZE / 2;
     const spawnY = SpaceState.spaceReturn ? SpaceState.spaceReturn.y : WORLD_SIZE / 2;
@@ -370,6 +391,40 @@ class FlightScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.sKey)) {
       SpaceState.save();
       this._domFloat(this.player.x, this.player.y - 30, 'Game Saved', '#88ff88');
+    }
+
+    // ── Space object proximity ─────────────────────────────────────
+    this.spaceObjects.forEach(obj => {
+      if (obj.collected) return;
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, obj.x, obj.y);
+      if (d < 40) {
+        if (!obj._prompted) {
+          document.getElementById('hud-location').textContent = obj.name + ' — [E] to salvage';
+          obj._prompted = true;
+        }
+        if (ePressed) {
+          obj.collected = true;
+          for (const [key, qty] of Object.entries(obj.loot)) {
+            SpaceState.addCargo(key, qty);
+            this._domFloat(obj.x, obj.y - 20, `+${qty} ${RESOURCE_DEFS[key]?.name || key}`, RESOURCE_DEFS[key]?.color || '#fff');
+          }
+          SpaceState.skills.exploration.totalExp += 30;
+          SpaceState.skills.scanning.totalExp += 20;
+          SpaceState.checkSkillUp('exploration');
+          SpaceState.checkSkillUp('scanning');
+          this._domFloat(obj.x, obj.y - 40, 'Salvaged!', '#ddaa44');
+        }
+      } else {
+        obj._prompted = false;
+      }
+    });
+
+    // ── Active buff ticking ──────────────────────────────────────────
+    if (SpaceState.activeBuff) {
+      SpaceState.activeBuff.timer -= delta / 1000;
+      if (SpaceState.activeBuff.timer <= 0) {
+        SpaceState.activeBuff = null;
+      }
     }
 
     // ── Drone AI ──────────────────────────────────────────────────────

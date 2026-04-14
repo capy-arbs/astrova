@@ -169,7 +169,9 @@ const SpaceState = {
   currentLocation: 'deep-space',
   spaceReturn: null,
   cargo: {},
+  items: {},  // crafted consumables: key → qty
   discoveredPlanets: [],
+  activeBuff: null, // { effect, amount, duration, timer }
 
   checkSkillUp(skillName) {
     const skill = this.skills[skillName];
@@ -182,11 +184,13 @@ const SpaceState = {
   // ── Derived stats from skills ────────────────────────────────────
   getShipSpeed() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
-    return 150 + (this.skills.piloting.level - 1) * 2 + shipDef.speedBonus;
+    const buffSpeed = (this.activeBuff && this.activeBuff.effect === 'speed') ? this.activeBuff.amount : 0;
+    return 150 + (this.skills.piloting.level - 1) * 2 + shipDef.speedBonus + buffSpeed;
   },
   getBulletDamage() {
     const wep = WEAPONS[this.player.weapon] || WEAPONS['auto-cannon'];
-    return wep.damage + this.player.baseDamage - 1 + Math.floor((this.skills.combat.level - 1) * 0.3);
+    const buffDmg = (this.activeBuff && this.activeBuff.effect === 'damage') ? this.activeBuff.amount : 0;
+    return wep.damage + this.player.baseDamage - 1 + Math.floor((this.skills.combat.level - 1) * 0.3) + buffDmg;
   },
   getFireRate() {
     const wep = WEAPONS[this.player.weapon] || WEAPONS['auto-cannon'];
@@ -333,6 +337,40 @@ const RESOURCE_DEFS = {
   'scrap-metal':    { name: 'Scrap Metal',    color: '#aaaaaa', value: 6  },
   'dust-crystal':   { name: 'Dust Crystal',   color: '#ccbb88', value: 15 },
   'ancient-relic':  { name: 'Ancient Relic',  color: '#ddaa44', value: 50 },
+};
+
+// ── Crafting recipes ─────────────────────────────────────────────────────────
+const CRAFT_RECIPES = [
+  { name: 'Repair Kit',     ingredients: { 'scrap-metal': 3 },                    craftLevel: 1,  xp: 15,
+    type: 'consumable', effect: 'heal', amount: 50, desc: 'Restores 50 hull' },
+  { name: 'Shield Cell',    ingredients: { 'ice-crystal': 2 },                    craftLevel: 5,  xp: 20,
+    type: 'consumable', effect: 'shield', amount: 40, desc: 'Restores 40 shield' },
+  { name: 'Fuel Booster',   ingredients: { 'magma-ore': 2, 'bio-matter': 1 },    craftLevel: 10, xp: 30,
+    type: 'consumable', effect: 'speed', amount: 50, duration: 30, desc: '+50 speed for 30s' },
+  { name: 'Damage Amp',     ingredients: { 'thermal-core': 1, 'obsidian-shard': 2 }, craftLevel: 15, xp: 40,
+    type: 'consumable', effect: 'damage', amount: 3, duration: 30, desc: '+3 damage for 30s' },
+  { name: 'Scanner Probe',  ingredients: { 'dust-crystal': 2, 'cryo-compound': 1 }, craftLevel: 8, xp: 25,
+    type: 'consumable', effect: 'scan', desc: 'Reveals all enemies on minimap for 60s' },
+  { name: 'Ancient Drive',  ingredients: { 'ancient-relic': 2, 'thermal-core': 2 }, craftLevel: 25, xp: 60,
+    type: 'consumable', effect: 'warp', desc: 'Instant warp to station' },
+];
+
+// ── Discoverable space objects ───────────────────────────────────────────────
+const SPACE_OBJECTS = {
+  'sol': [
+    { type: 'derelict',  x: 800,  y: 1800, name: 'Abandoned Freighter', loot: { 'scrap-metal': 5, 'ancient-relic': 1 } },
+    { type: 'asteroids', x: 2200, y: 1200, name: 'Asteroid Field',      loot: { 'magma-ore': 3, 'dust-crystal': 2 } },
+  ],
+  'alpha-centauri': [
+    { type: 'derelict',  x: 1000, y: 2000, name: 'Wrecked Battleship',  loot: { 'scrap-metal': 8, 'ancient-relic': 2 } },
+    { type: 'asteroids', x: 2500, y: 1000, name: 'Ice Asteroid Belt',   loot: { 'ice-crystal': 5, 'cryo-compound': 3 } },
+    { type: 'derelict',  x: 600,  y: 600,  name: 'Ghost Station',       loot: { 'ancient-relic': 3, 'thermal-core': 2 } },
+  ],
+  'kepler': [
+    { type: 'asteroids', x: 800,  y: 1400, name: 'Magma Asteroids',     loot: { 'magma-ore': 6, 'obsidian-shard': 4 } },
+    { type: 'derelict',  x: 2200, y: 600,  name: 'Ancient Vessel',      loot: { 'ancient-relic': 5, 'thermal-core': 3 } },
+    { type: 'asteroids', x: 1800, y: 2600, name: 'Crystal Fields',      loot: { 'dust-crystal': 6, 'ice-crystal': 4 } },
+  ],
 };
 
 // ── Ship upgrade definitions ─────────────────────────────────────────────────
