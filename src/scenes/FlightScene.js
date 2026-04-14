@@ -194,7 +194,7 @@ class FlightScene extends Phaser.Scene {
     const shipSpeed = SpaceState.getShipSpeed();
     this.player.setMaxVelocity(shipSpeed);
 
-    let ax = 0, ay = 0;
+    let ax = touchState.ax, ay = touchState.ay;
     if (up) ay = -1; if (down) ay = 1;
     if (left) ax = -1; if (right) ax = 1;
 
@@ -227,7 +227,7 @@ class FlightScene extends Phaser.Scene {
 
     // ── Shooting ─────────────────────────────────────────────────────
     const fireRate = SpaceState.getFireRate();
-    if (this.spaceKey.isDown && time > this.lastFired + fireRate) {
+    if ((this.spaceKey.isDown || touchState.fire) && time > this.lastFired + fireRate) {
       this._fireBullet();
       this.lastFired = time;
     }
@@ -278,8 +278,10 @@ class FlightScene extends Phaser.Scene {
       document.getElementById('hud-location').textContent = STAR_SYSTEMS[SpaceState.currentSystem].name;
     }
 
-    // ── E key interactions ───────────────────────────────────────────
-    if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+    // ── E key / touch action interactions ───────────────────────────
+    const ePressed = Phaser.Input.Keyboard.JustDown(this.eKey) || (touchState.action && !this._lastTouchAction);
+    this._lastTouchAction = touchState.action;
+    if (ePressed) {
       if (nearGate) {
         this._jumpToSystem(nearGate.target);
       } else if (this.nearPlanet) {
@@ -297,7 +299,9 @@ class FlightScene extends Phaser.Scene {
     }
 
     // ── Cargo / Save ─────────────────────────────────────────────────
-    if (Phaser.Input.Keyboard.JustDown(this.iKey)) showCargoScreen();
+    const iPressed = Phaser.Input.Keyboard.JustDown(this.iKey) || (touchState.inv && !this._lastTouchInv);
+    this._lastTouchInv = touchState.inv;
+    if (iPressed) showCargoScreen();
     if (Phaser.Input.Keyboard.JustDown(this.sKey)) {
       SpaceState.save();
       this._domFloat(this.player.x, this.player.y - 30, 'Game Saved', '#88ff88');

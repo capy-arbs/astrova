@@ -21,6 +21,83 @@ requestAnimationFrame(() => {
   if (canvas) { canvas.style.position = 'relative'; canvas.style.zIndex = '1'; }
 });
 
+// ── Mobile touch controls ────────────────────────────────────────────────────
+const touchState = { ax: 0, ay: 0, fire: false, action: false, inv: false };
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+if (isTouchDevice) {
+  document.getElementById('touch-controls').style.display = 'block';
+
+  // Joystick
+  const jZone = document.getElementById('joystick-zone');
+  const jThumb = document.getElementById('joystick-thumb');
+  const jBase = document.getElementById('joystick-base');
+  let jActive = false, jTouchId = null;
+  const jCenterX = 70, jCenterY = 70; // center of joystick zone
+  const jMaxDist = 45;
+
+  jZone.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    jActive = true;
+    jTouchId = t.identifier;
+    _updateJoystick(t);
+  });
+
+  jZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier === jTouchId) _updateJoystick(t);
+    }
+  });
+
+  jZone.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === jTouchId) {
+        jActive = false; jTouchId = null;
+        touchState.ax = 0; touchState.ay = 0;
+        jThumb.style.left = '48px'; jThumb.style.bottom = '48px';
+      }
+    }
+  });
+
+  function _updateJoystick(touch) {
+    const rect = jZone.getBoundingClientRect();
+    const dx = (touch.clientX - rect.left) - jCenterX;
+    const dy = (touch.clientY - rect.top) - jCenterY;
+    const dist = Math.min(jMaxDist, Math.sqrt(dx*dx + dy*dy));
+    const angle = Math.atan2(dy, dx);
+    const nx = Math.cos(angle) * dist;
+    const ny = Math.sin(angle) * dist;
+
+    jThumb.style.left = (jCenterX + nx - 22) + 'px';
+    jThumb.style.bottom = (jCenterY - ny - 22) + 'px';
+
+    // Deadzone
+    if (dist > 10) {
+      touchState.ax = nx / jMaxDist;
+      touchState.ay = ny / jMaxDist;
+    } else {
+      touchState.ax = 0; touchState.ay = 0;
+    }
+  }
+
+  // Fire button
+  const fireBtn = document.getElementById('btn-fire');
+  fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); touchState.fire = true; });
+  fireBtn.addEventListener('touchend', (e) => { touchState.fire = false; });
+
+  // Action button (E key equivalent)
+  const actBtn = document.getElementById('btn-action');
+  actBtn.addEventListener('touchstart', (e) => { e.preventDefault(); touchState.action = true; });
+  actBtn.addEventListener('touchend', (e) => { touchState.action = false; });
+
+  // Inventory button
+  const invBtn = document.getElementById('btn-inv');
+  invBtn.addEventListener('touchstart', (e) => { e.preventDefault(); touchState.inv = true; });
+  invBtn.addEventListener('touchend', (e) => { touchState.inv = false; });
+}
+
 // ── Cargo / Skills Screen (DOM) ──────────────────────────────────────────────
 let _cargoOpen = false;
 
@@ -30,7 +107,7 @@ function showCargoScreen() {
 
   const el = document.createElement('div');
   el.id = 'cargo-screen';
-  el.style.cssText = 'position:absolute;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
+  el.style.cssText = 'position:absolute;inset:0;z-index:300;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
 
   const cargo = SpaceState.cargo;
   const cargoKeys = Object.keys(cargo);
@@ -121,7 +198,7 @@ function showStationScreen() {
 
   const el = document.createElement('div');
   el.id = 'station-screen';
-  el.style.cssText = 'position:absolute;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
+  el.style.cssText = 'position:absolute;inset:0;z-index:300;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
 
   _renderStation(el);
   document.getElementById('hud-overlay').appendChild(el);
@@ -318,7 +395,7 @@ function hideStationScreen() {
 function showGameOverScreen(onRestart) {
   const el = document.createElement('div');
   el.id = 'gameover-screen';
-  el.style.cssText = 'position:absolute;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
+  el.style.cssText = 'position:absolute;inset:0;z-index:400;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
   el.innerHTML = `
     <div style="position:absolute;inset:0;background:rgba(0,0,0,0.8);"></div>
     <div style="position:relative;text-align:center;color:#ddd;">

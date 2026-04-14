@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Void Drifter — CapyForge Games</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Astrova — CapyForge Games</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+    body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; touch-action: none; }
     canvas { image-rendering: pixelated; }
 
     #game-wrapper { position: relative; }
 
-    /* DOM HUD overlay */
+    /* DOM HUD overlay — allows clicks to pass through EXCEPT on interactive children */
     #hud-overlay {
       position: absolute; top: 0; left: 0;
       width: 100%; height: 100%;
@@ -34,17 +34,57 @@
     #hud-location { font-size: 13px; font-weight: 600; color: #aabbcc; text-shadow: 1px 1px 2px #000; }
     #hud-credits { font-size: 12px; color: #ddcc44; margin-top: 4px; text-shadow: 1px 1px 2px #000; }
 
-    #float-container { position: absolute; inset: 0; overflow: hidden; }
+    #float-container { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
     .float-text {
       position: absolute; font-size: 14px; font-weight: 700;
       text-shadow: 1px 1px 2px #000;
       white-space: nowrap; transform: translate(-50%, -100%);
       animation: float-up 1s ease-out forwards;
+      pointer-events: none;
     }
     @keyframes float-up {
       0% { opacity: 1; transform: translate(-50%, -100%); }
       100% { opacity: 0; transform: translate(-50%, calc(-100% - 40px)); }
     }
+
+    /* ── Mobile touch controls ────────────────────────────────────────── */
+    #touch-controls {
+      display: none; /* hidden on desktop, shown via JS on touch devices */
+      position: absolute; bottom: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 150;
+    }
+    .touch-zone {
+      position: absolute; pointer-events: auto;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Joystick area — bottom left */
+    #joystick-zone {
+      left: 10px; bottom: 10px; width: 140px; height: 140px;
+    }
+    #joystick-base {
+      width: 120px; height: 120px; border-radius: 50%;
+      background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15);
+      position: absolute; left: 10px; bottom: 10px;
+    }
+    #joystick-thumb {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.3);
+      position: absolute; left: 48px; bottom: 48px;
+      transform: translate(-50%, 50%);
+      transition: none;
+    }
+    /* Action buttons — bottom right */
+    .touch-btn {
+      position: absolute; pointer-events: auto;
+      width: 56px; height: 56px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7);
+      -webkit-tap-highlight-color: transparent;
+    }
+    #btn-fire { right: 20px; bottom: 80px; background: rgba(255,50,50,0.2); border: 2px solid rgba(255,80,80,0.3); }
+    #btn-action { right: 90px; bottom: 40px; background: rgba(50,150,255,0.2); border: 2px solid rgba(80,150,255,0.3); }
+    #btn-inv { right: 20px; bottom: 150px; background: rgba(200,200,50,0.15); border: 2px solid rgba(200,200,80,0.25); font-size: 10px; width: 44px; height: 44px; }
+    .touch-btn:active { filter: brightness(1.5); }
   </style>
 </head>
 <body>
@@ -65,6 +105,17 @@
         <div id="hud-credits">Credits: 0</div>
       </div>
       <div id="float-container"></div>
+    </div>
+
+    <!-- Mobile touch controls -->
+    <div id="touch-controls">
+      <div id="joystick-zone" class="touch-zone">
+        <div id="joystick-base"></div>
+        <div id="joystick-thumb"></div>
+      </div>
+      <div id="btn-fire" class="touch-btn">FIRE</div>
+      <div id="btn-action" class="touch-btn">E</div>
+      <div id="btn-inv" class="touch-btn">INV</div>
     </div>
   </div>
 

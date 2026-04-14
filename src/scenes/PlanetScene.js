@@ -120,7 +120,7 @@ class PlanetScene extends Phaser.Scene {
     const left  = this.cursors.left.isDown  || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
 
-    let vx = 0, vy = 0;
+    let vx = touchState.ax * WALK_SPEED, vy = touchState.ay * WALK_SPEED;
     if (up)    vy = -WALK_SPEED;
     if (down)  vy = WALK_SPEED;
     if (left)  vx = -WALK_SPEED;
@@ -172,7 +172,9 @@ class PlanetScene extends Phaser.Scene {
         showWorldPrompt('ship-return', this.landedShip.x, this.landedShip.y - 20, '[E] Take Off');
         this.shipPromptVisible = true;
       }
-      if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+      const ePressed = Phaser.Input.Keyboard.JustDown(this.eKey) || (touchState.action && !this._lastTouchAction);
+      this._lastTouchAction = touchState.action;
+      if (ePressed) {
         this._takeOff();
       }
     } else if (this.shipPromptVisible) {
