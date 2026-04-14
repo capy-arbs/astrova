@@ -669,10 +669,12 @@ class FlightScene extends Phaser.Scene {
 
   _updateHUD() {
     const p = SpaceState.player;
-    document.getElementById('hp-fill').style.width = (p.hp / p.maxHp * 100) + '%';
-    document.getElementById('hp-text').textContent = `${Math.floor(p.hp)}/${p.maxHp}`;
-    document.getElementById('shield-fill').style.width = (Math.floor(p.shield) / p.maxShield * 100) + '%';
-    document.getElementById('shield-text').textContent = `${Math.floor(p.shield)}/${p.maxShield}`;
+    const maxHp = p.maxHp + SpaceState.getMaxHpBonus();
+    const maxSh = p.maxShield + SpaceState.getMaxShieldBonus();
+    document.getElementById('hp-fill').style.width = (p.hp / maxHp * 100) + '%';
+    document.getElementById('hp-text').textContent = `${Math.floor(p.hp)}/${maxHp}`;
+    document.getElementById('shield-fill').style.width = (Math.floor(p.shield) / maxSh * 100) + '%';
+    document.getElementById('shield-text').textContent = `${Math.floor(p.shield)}/${maxSh}`;
     document.getElementById('hud-credits').textContent = `Credits: ${p.credits}`;
   }
 

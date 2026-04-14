@@ -197,10 +197,10 @@ const SpaceState = {
     return 2 + (this.skills.shields.level - 1) * 0.1; // base 2 + 0.1 per level
   },
   getMaxShieldBonus() {
-    return (this.skills.shields.level - 1) * 1; // +1 max shield per level
+    return (this.skills.shields.level - 1) * 2; // +2 max shield per level
   },
   getMaxHpBonus() {
-    return (this.skills.hullIntegrity.level - 1) * 2; // +2 max HP per level
+    return (this.skills.hullIntegrity.level - 1) * 3; // +3 max HP per level
   },
   getDroneCount() {
     const shipDef = SHIPS[this.player.ship];
@@ -231,7 +231,8 @@ const SpaceState = {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
     // Only starter ship has damage state sprites
     if (this.player.ship === 'starter') {
-      const pct = this.player.hp / this.player.maxHp;
+      const maxHp = this.player.maxHp + this.getMaxHpBonus();
+      const pct = this.player.hp / maxHp;
       if (pct > 0.75) return 'ship-full';
       if (pct > 0.50) return 'ship-slight';
       if (pct > 0.25) return 'ship-damaged';
