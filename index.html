@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Void Drifter — CapyForge Games</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+    canvas { image-rendering: pixelated; }
+
+    #game-wrapper { position: relative; }
+
+    /* DOM HUD overlay */
+    #hud-overlay {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 100;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #fff;
+    }
+
+    #hud-top-left { position: absolute; top: 12px; left: 16px; }
+    #hud-top-right { position: absolute; top: 12px; right: 16px; text-align: right; }
+
+    .hud-bar { display: flex; align-items: center; margin-bottom: 4px; }
+    .hud-bar-label { font-size: 12px; font-weight: 700; width: 50px; text-shadow: 1px 1px 2px #000; }
+    .hud-bar-bg { width: 160px; height: 12px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; position: relative; }
+    .hud-bar-fill { height: 100%; border-radius: 3px; transition: width 0.2s; }
+    .hud-bar-fill.hp { background: #22cc44; }
+    .hud-bar-fill.shield { background: #4488ff; }
+    .hud-bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; text-shadow: 1px 1px 1px #000; }
+
+    #hud-location { font-size: 13px; font-weight: 600; color: #aabbcc; text-shadow: 1px 1px 2px #000; }
+    #hud-credits { font-size: 12px; color: #ddcc44; margin-top: 4px; text-shadow: 1px 1px 2px #000; }
+
+    #float-container { position: absolute; inset: 0; overflow: hidden; }
+    .float-text {
+      position: absolute; font-size: 14px; font-weight: 700;
+      text-shadow: 1px 1px 2px #000;
+      white-space: nowrap; transform: translate(-50%, -100%);
+      animation: float-up 1s ease-out forwards;
+    }
+    @keyframes float-up {
+      0% { opacity: 1; transform: translate(-50%, -100%); }
+      100% { opacity: 0; transform: translate(-50%, calc(-100% - 40px)); }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <div id="hud-overlay">
+      <div id="hud-top-left">
+        <div class="hud-bar">
+          <span class="hud-bar-label" style="color:#44ee66">HULL</span>
+          <div class="hud-bar-bg"><div class="hud-bar-fill hp" id="hp-fill" style="width:100%"></div><div class="hud-bar-text" id="hp-text">100/100</div></div>
+        </div>
+        <div class="hud-bar">
+          <span class="hud-bar-label" style="color:#6699ff">SHIELD</span>
+          <div class="hud-bar-bg"><div class="hud-bar-fill shield" id="shield-fill" style="width:100%"></div><div class="hud-bar-text" id="shield-text">50/50</div></div>
+        </div>
+      </div>
+      <div id="hud-top-right">
+        <div id="hud-location">Deep Space</div>
+        <div id="hud-credits">Credits: 0</div>
+      </div>
+      <div id="float-container"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <script src="src/gamestate.js"></script>
+  <script src="src/scenes/FlightScene.js"></script>
+  <script src="src/scenes/PlanetScene.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
