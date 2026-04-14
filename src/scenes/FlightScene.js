@@ -204,9 +204,9 @@ class FlightScene extends Phaser.Scene {
       this.facingAngle = Math.atan2(ay/len, ax/len);
 
       this.pilotingTimer += delta;
-      if (this.pilotingTimer >= 3000) {
-        this.pilotingTimer -= 3000;
-        SpaceState.skills.piloting.totalExp += 4;
+      if (this.pilotingTimer >= 1000) {
+        this.pilotingTimer -= 1000;
+        SpaceState.skills.piloting.totalExp += 8;
         const g = SpaceState.checkSkillUp('piloting');
         if (g > 0) this._domFloat(this.player.x, this.player.y - 30, `Piloting LV${SpaceState.skills.piloting.level}!`, '#44ddff');
       }
