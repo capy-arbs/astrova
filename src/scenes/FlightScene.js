@@ -202,7 +202,13 @@ class FlightScene extends Phaser.Scene {
       const len = Math.sqrt(ax*ax + ay*ay);
       this.player.setAcceleration((ax/len) * 500, (ay/len) * 500);
       this.facingAngle = Math.atan2(ay/len, ax/len);
+    } else {
+      this.player.setAcceleration(0, 0);
+    }
 
+    // Piloting XP from any movement (including drifting)
+    const shipVel = this.player.body.velocity.length();
+    if (shipVel > 10) {
       this.pilotingTimer += delta;
       if (this.pilotingTimer >= 1000) {
         this.pilotingTimer -= 1000;
@@ -210,9 +216,6 @@ class FlightScene extends Phaser.Scene {
         const g = SpaceState.checkSkillUp('piloting');
         if (g > 0) this._domFloat(this.player.x, this.player.y - 30, `Piloting LV${SpaceState.skills.piloting.level}!`, '#44ddff');
       }
-    } else {
-      this.player.setAcceleration(0, 0);
-      this.pilotingTimer = 0;
     }
 
     // Smooth rotation
