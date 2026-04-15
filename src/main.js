@@ -237,6 +237,7 @@ function showCargoScreen() {
         </div>
       </div>
       <div style="text-align:center;color:#445;font-size:12px;margin-top:12px;">[I] to close &nbsp; Credits: ${SpaceState.player.credits}</div>
+      <button onclick="hideCargoScreen()" style="display:block;margin:8px auto 0;background:#1a1a2a;color:#aaa;border:1px solid #555;border-radius:4px;padding:6px 24px;cursor:pointer;font-size:12px;">Close</button>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;">
         <button onclick="manualSave()" style="background:#1a2a1a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:11px;">Save Game</button>
         <button onclick="confirmReset()" style="background:#2a1a1a;color:#aa4444;border:1px solid #aa4444;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:11px;">Reset Save</button>
@@ -356,6 +357,7 @@ function _renderStation(el) {
       </div>
       <div style="text-align:center;color:#ddcc44;font-size:13px;margin-top:8px;">Credits: ${SpaceState.player.credits}</div>
       <div style="text-align:center;color:#445;font-size:11px;margin-top:2px;">[ESC] to undock</div>
+      <button onclick="hideStationScreen()" style="display:block;margin:8px auto 0;background:#2a1a1a;color:#aa6666;border:1px solid #aa4444;border-radius:4px;padding:6px 24px;cursor:pointer;font-size:12px;">Undock</button>
     </div>`;
 }
 
@@ -923,6 +925,7 @@ function showTraderScreen(trader) {
       ${goodsHtml}
       <div style="text-align:center;color:#ddcc44;font-size:12px;margin-top:10px;">Credits: ${SpaceState.player.credits}</div>
       <div style="text-align:center;color:#445;font-size:10px;margin-top:4px;">[ESC] or click outside</div>
+      <button onclick="hideTraderScreen()" style="display:block;margin:8px auto 0;background:#1a2a1a;color:#aaa;border:1px solid #555;border-radius:4px;padding:6px 24px;cursor:pointer;font-size:12px;">Leave</button>
     </div>`;
 
   // Store trader ref for buying
@@ -992,6 +995,7 @@ function showSettlementScreen(settlement, planetName) {
       ${shopHtml ? `<div style="font-size:13px;color:#44cc88;margin-top:10px;margin-bottom:6px;">BUY RESOURCES</div>${shopHtml}` : ''}
       <div style="text-align:center;color:#ddcc44;font-size:12px;margin-top:10px;">Credits: ${SpaceState.player.credits}</div>
       <div style="text-align:center;color:#445;font-size:11px;margin-top:4px;">[ESC] or click outside to leave</div>
+      <button onclick="hideSettlementScreen()" style="display:block;margin:8px auto 0;background:#1a1a2a;color:#aaa;border:1px solid #555;border-radius:4px;padding:6px 24px;cursor:pointer;font-size:12px;">Leave</button>
     </div>`;
 
   document.getElementById('hud-overlay').appendChild(el);
