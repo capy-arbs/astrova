@@ -394,10 +394,23 @@ class FlightScene extends Phaser.Scene {
       }
     });
 
-    // Clean up enemy bullets
+    // Clean up enemy bullets (distance + lifetime)
     this.enemyBullets.children.each(b => {
-      if (b.active && Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) > 500) b.destroy();
+      if (!b.active) return;
+      // Kill if too far OR if it's been alive too long
+      const age = (b.getData('born') || 0);
+      b.setData('born', age + delta);
+      if (age > 3000 || Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) > 500) {
+        b.destroy();
+      }
     });
+
+    // Periodic cleanup of dead bodies from groups
+    if (time % 5000 < delta) {
+      this.enemies.children.each(e => { if (e && !e.active) e.destroy(); });
+      this.bullets.children.each(b => { if (b && !b.active) b.destroy(); });
+      this.enemyBullets.children.each(b => { if (b && !b.active) b.destroy(); });
+    }
 
     // ── Planet proximity ─────────────────────────────────────────────
     this.nearPlanet = null;
@@ -746,13 +759,26 @@ class FlightScene extends Phaser.Scene {
     }
   }
 
+  shutdown() {
+    // Clean up everything on scene exit
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+    this.drones.forEach(d => { if (d.active) d.destroy(); });
+    this.drones = [];
+    // Clear DOM elements
+    const floats = document.getElementById('float-container');
+    if (floats) floats.innerHTML = '';
+  }
+
   _landOnPlanet(planet) {
     SpaceState.spaceReturn = { x: this.player.x, y: this.player.y };
+    this.shutdown();
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('PlanetScene', { planet }));
   }
 
   _jumpToSystem(targetSystem) {
+    this.shutdown();
     SpaceState.currentSystem = targetSystem;
     SpaceState.spaceReturn = null;
 
@@ -1361,6 +1387,11 @@ class FlightScene extends Phaser.Scene {
 
   _domFloat(x, y, msg, color, duration) {
     duration = duration || 1200;
+    const container = document.getElementById('float-container');
+    // Cap at 20 active floats to prevent DOM bloat
+    while (container.children.length > 20) {
+      container.removeChild(container.firstChild);
+    }
     const el = document.createElement('div');
     el.className = 'float-text';
     el.textContent = msg;
@@ -1372,7 +1403,7 @@ class FlightScene extends Phaser.Scene {
     const scaleY = canvas.clientHeight / this.scale.height;
     el.style.left = ((x - cam.scrollX) * scaleX) + 'px';
     el.style.top = ((y - cam.scrollY) * scaleY) + 'px';
-    document.getElementById('float-container').appendChild(el);
+    container.appendChild(el);
     setTimeout(() => el.remove(), duration + 50);
   }
 }
