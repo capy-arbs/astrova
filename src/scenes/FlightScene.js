@@ -46,8 +46,19 @@ class FlightScene extends Phaser.Scene {
     this.load.image('enemy-scout',   VOID_FLEET + "Kla'ed/Base/PNGs/Kla'ed - Scout - Base.png");
     this.load.image('enemy-bomber',  VOID_FLEET + "Kla'ed/Base/PNGs/Kla'ed - Bomber - Base.png");
 
-    // Police ships (use Nautolan support ship - looks different from enemies)
+    // Police ships
     this.load.image('police', _SP + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Support - Base.png');
+
+    // Frontier enemies (Nairan - pirates)
+    this.load.image('pirate-frigate',   _SP + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Frigate - Base.png');
+    this.load.image('pirate-torpedo',   _SP + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Torpedo Ship - Base.png');
+    this.load.image('pirate-cruiser',   _SP + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/Nairan - Battlecruiser - Base.png');
+
+    // Alien enemies (Nautolan - unknown species)
+    this.load.image('alien-scout',      _SP + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Scout - Base.png');
+    this.load.image('alien-fighter',    _SP + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Fighter - Base.png');
+    this.load.image('alien-battleship', _SP + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Battlecruiser - Base.png');
+    this.load.image('alien-leviathan',  _SP + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Dreadnought - Base.png');
 
     // Planets
     this.load.image('planet-terran', ASSET + 'Terran.png');
@@ -618,11 +629,38 @@ class FlightScene extends Phaser.Scene {
   }
 
   _spawnEnemies(count) {
-    const types = [
-      { key: 'enemy-fighter', hp: 2, speed: 70,  aggro: 350, scale: 0.5 },
-      { key: 'enemy-scout',   hp: 1, speed: 100, aggro: 450, scale: 0.45 },
-      { key: 'enemy-bomber',  hp: 4, speed: 40,  aggro: 300, scale: 0.6 },
-    ];
+    const sys = SpaceState.currentSystem;
+    const sysData = STAR_SYSTEMS[sys];
+    const layer = sysData.layer || 1;
+
+    // Different enemy pools per layer
+    let types, tint;
+    if (layer <= 2) {
+      // Core/Settled — Kla'ed
+      types = [
+        { key: 'enemy-fighter', hp: 2, speed: 70,  aggro: 350, scale: 0.5 },
+        { key: 'enemy-scout',   hp: 1, speed: 100, aggro: 450, scale: 0.45 },
+        { key: 'enemy-bomber',  hp: 4, speed: 40,  aggro: 300, scale: 0.6 },
+      ];
+      tint = null;
+    } else if (layer === 3) {
+      // Frontier — Pirates (red-tinted Nairan)
+      types = [
+        { key: 'pirate-frigate', hp: 5,  speed: 60,  aggro: 400, scale: 0.5 },
+        { key: 'pirate-torpedo', hp: 3,  speed: 90,  aggro: 450, scale: 0.45 },
+        { key: 'pirate-cruiser', hp: 10, speed: 35,  aggro: 350, scale: 0.4 },
+      ];
+      tint = 0xff6644;
+    } else {
+      // Unknown — Aliens (purple/green-tinted Nautolan)
+      types = [
+        { key: 'alien-scout',      hp: 4,  speed: 110, aggro: 500, scale: 0.45 },
+        { key: 'alien-fighter',    hp: 8,  speed: 80,  aggro: 450, scale: 0.5 },
+        { key: 'alien-battleship', hp: 15, speed: 50,  aggro: 400, scale: 0.4 },
+        { key: 'alien-leviathan',  hp: 25, speed: 30,  aggro: 350, scale: 0.45 },
+      ];
+      tint = 0xaa44ff;
+    }
     for (let i = 0; i < count; i++) {
       const type = types[Phaser.Math.Between(0, types.length - 1)];
       let x, y;
@@ -633,8 +671,11 @@ class FlightScene extends Phaser.Scene {
 
       const e = this.enemies.create(x, y, type.key);
       e.setScale(type.scale).setDepth(5);
+      if (tint) e.setTint(tint);
       e.setData('hp', type.hp).setData('maxHp', type.hp).setData('speed', type.speed);
       e.setData('aggro', type.aggro).setData('spawnX', x).setData('spawnY', y).setData('type', type);
+      e.setData('tint', tint);
+      e.setData('layer', layer);
     }
   }
 
@@ -659,10 +700,13 @@ class FlightScene extends Phaser.Scene {
     }
 
     if (hp <= 0) {
-      SpaceState.player.credits += 10;
-      SpaceState.skills.combat.totalExp += 15;
+      const layer = enemy.getData('layer') || 1;
+      const creditReward = 10 * layer;
+      const xpReward = 15 * layer;
+      SpaceState.player.credits += creditReward;
+      SpaceState.skills.combat.totalExp += xpReward;
       const g = SpaceState.checkSkillUp('combat');
-      this._domFloat(enemy.x, enemy.y, '+10 cr', '#ddcc44');
+      this._domFloat(enemy.x, enemy.y, `+${creditReward} cr`, '#ddcc44');
       if (g > 0) this._domFloat(enemy.x, enemy.y - 20, `Combat LV${SpaceState.skills.combat.level}!`, '#ffee44');
 
       // Mission kill tracking
@@ -680,12 +724,16 @@ class FlightScene extends Phaser.Scene {
       this.tweens.add({
         targets: enemy, alpha: 0, scale: 0.1, duration: 200,
         onComplete: () => {
+          const eTint = enemy.getData('tint');
+          const eLayer = enemy.getData('layer');
           enemy.destroy();
           this.time.delayedCall(15000, () => {
             const e = this.enemies.create(sx, sy, type.key);
             e.setScale(type.scale).setDepth(5).setAlpha(0);
+            if (eTint) e.setTint(eTint);
             e.setData('hp', type.hp).setData('maxHp', type.hp).setData('speed', type.speed);
             e.setData('aggro', type.aggro).setData('spawnX', sx).setData('spawnY', sy).setData('type', type);
+            e.setData('tint', eTint).setData('layer', eLayer);
             this.tweens.add({ targets: e, alpha: 1, duration: 500 });
           });
         },
@@ -824,12 +872,16 @@ class FlightScene extends Phaser.Scene {
       this.tweens.add({
         targets: enemy, alpha: 0, scale: 0.1, duration: 200,
         onComplete: () => {
+          const eTint = enemy.getData('tint');
+          const eLayer = enemy.getData('layer');
           enemy.destroy();
           this.time.delayedCall(15000, () => {
             const e = this.enemies.create(sx, sy, type.key);
             e.setScale(type.scale).setDepth(5).setAlpha(0);
+            if (eTint) e.setTint(eTint);
             e.setData('hp', type.hp).setData('maxHp', type.hp).setData('speed', type.speed);
             e.setData('aggro', type.aggro).setData('spawnX', sx).setData('spawnY', sy).setData('type', type);
+            e.setData('tint', eTint).setData('layer', eLayer);
             this.tweens.add({ targets: e, alpha: 1, duration: 500 });
           });
         },

@@ -26,8 +26,9 @@ const WEAPONS = {
 
 // ── Star system definitions ──────────────────────────────────────────────────
 const STAR_SYSTEMS = {
+  // ── LAYER 1: Core ────────────────────────────────
   'sol': {
-    name: 'Sol System',
+    name: 'Sol System', layer: 1,
     planets: [
       { key: 'planet-terran', x: 500,  y: 500,  name: 'Terra Nova',  scale: 2.0 },
       { key: 'planet-ice',    x: 2400, y: 600,  name: 'Glacius',     scale: 1.8 },
@@ -42,8 +43,9 @@ const STAR_SYSTEMS = {
     ],
     traders: 3,
   },
+  // ── LAYER 2: Settled ──────────────────────────────
   'alpha-centauri': {
-    name: 'Alpha Centauri',
+    name: 'Alpha Centauri', layer: 2,
     planets: [
       { key: 'planet-ice',    x: 600,  y: 800,  name: 'Frostheim',   scale: 2.5 },
       { key: 'planet-barren', x: 2200, y: 400,  name: 'Ashfall',     scale: 1.8 },
@@ -57,11 +59,12 @@ const STAR_SYSTEMS = {
     jumpGates: [
       { x: 100, y: 1500, target: 'sol', name: 'Sol Gate' },
       { x: 1500, y: 100, target: 'kepler', name: 'Kepler Gate' },
+      { x: 2900, y: 1500, target: 'outerrim', name: 'Outer Rim Gate' },
     ],
     traders: 4,
   },
   'kepler': {
-    name: 'Kepler Expanse',
+    name: 'Kepler Expanse', layer: 2,
     planets: [
       { key: 'planet-lava',   x: 800,  y: 600,  name: 'Hellion',     scale: 2.8 },
       { key: 'planet-lava',   x: 2000, y: 800,  name: 'Crucible',    scale: 2.0 },
@@ -73,8 +76,77 @@ const STAR_SYSTEMS = {
     enemyCount: 40,
     jumpGates: [
       { x: 1500, y: 2900, target: 'alpha-centauri', name: 'Alpha Centauri Gate' },
+      { x: 100,  y: 1500, target: 'deadzone',       name: 'Dead Zone Gate' },
     ],
     traders: 2,
+  },
+
+  // ── LAYER 3: Frontier ────────────────────────────
+  'deadzone': {
+    name: 'The Dead Zone', layer: 3,
+    planets: [
+      { key: 'planet-barren', x: 400,  y: 600,  name: 'Wreckage Field', scale: 1.8 },
+      { key: 'planet-barren', x: 2200, y: 1800, name: 'Scrap Heap',     scale: 2.0 },
+      { key: 'planet-lava',   x: 1800, y: 400,  name: 'Ember',          scale: 1.5 },
+    ],
+    station: null, // no station — lawless
+    enemyCount: 35,
+    jumpGates: [
+      { x: 2900, y: 1500, target: 'kepler',    name: 'Kepler Gate' },
+      { x: 1500, y: 100,  target: 'nebula',    name: 'Nebula Rift Gate' },
+    ],
+    traders: 1,
+  },
+  'outerrim': {
+    name: 'Outer Rim', layer: 3,
+    planets: [
+      { key: 'planet-ice',    x: 600,  y: 500,  name: 'Exile',        scale: 2.2 },
+      { key: 'planet-barren', x: 2400, y: 800,  name: 'Rustworld',    scale: 1.6 },
+      { key: 'planet-lava',   x: 1200, y: 2200, name: 'Slagforge',    scale: 1.9 },
+      { key: 'planet-barren', x: 500,  y: 2000, name: 'Desolation',   scale: 1.4 },
+    ],
+    station: { x: 1500, y: 1400 },
+    enemyCount: 40,
+    jumpGates: [
+      { x: 100,  y: 1500, target: 'alpha-centauri', name: 'Alpha Centauri Gate' },
+      { x: 1500, y: 2900, target: 'void',           name: 'Void Gate' },
+    ],
+    traders: 1,
+  },
+
+  // ── LAYER 4: Unknown ─────────────────────────────
+  'nebula': {
+    name: 'Xenith Nebula', layer: 4,
+    planets: [
+      { key: 'planet-lava',   x: 800,  y: 800,  name: 'Anomaly Prime',  scale: 2.5 },
+      { key: 'planet-ice',    x: 2200, y: 600,  name: 'Frozen Signal',  scale: 2.0 },
+      { key: 'planet-terran', x: 1400, y: 2200, name: 'Genesis',        scale: 2.8 },
+      { key: 'planet-barren', x: 500,  y: 1800, name: 'The Monolith',   scale: 1.5 },
+    ],
+    station: null,
+    enemyCount: 50,
+    jumpGates: [
+      { x: 1500, y: 2900, target: 'deadzone', name: 'Dead Zone Gate' },
+      { x: 2900, y: 1500, target: 'void',     name: 'Void Breach' },
+    ],
+    traders: 0,
+  },
+  'void': {
+    name: 'The Void', layer: 4,
+    planets: [
+      { key: 'planet-lava',   x: 1500, y: 1500, name: 'The Eye',        scale: 3.0 },
+      { key: 'planet-ice',    x: 400,  y: 400,  name: 'Whisper',        scale: 1.8 },
+      { key: 'planet-barren', x: 2600, y: 400,  name: 'Terminus',       scale: 2.0 },
+      { key: 'planet-terran', x: 600,  y: 2400, name: 'Last Garden',    scale: 2.2 },
+      { key: 'planet-lava',   x: 2400, y: 2200, name: 'Oblivion',       scale: 2.5 },
+    ],
+    station: null,
+    enemyCount: 60,
+    jumpGates: [
+      { x: 100,  y: 1500, target: 'nebula',    name: 'Nebula Gate' },
+      { x: 1500, y: 100,  target: 'outerrim',  name: 'Outer Rim Gate' },
+    ],
+    traders: 0,
   },
 };
 
@@ -432,6 +504,28 @@ const SPACE_OBJECTS = {
     { type: 'derelict',  x: 2200, y: 600,  name: 'Ancient Vessel',      loot: { 'ancient-relic': 5, 'thermal-core': 3 } },
     { type: 'asteroids', x: 1800, y: 2600, name: 'Crystal Fields',      loot: { 'dust-crystal': 6, 'ice-crystal': 4 } },
   ],
+  'deadzone': [
+    { type: 'derelict',  x: 1200, y: 1000, name: 'Pirate Wreck',        loot: { 'scrap-metal': 10, 'stolen-tech': 2 } },
+    { type: 'derelict',  x: 800,  y: 2000, name: 'Colony Ship Debris',   loot: { 'ancient-relic': 3, 'scrap-metal': 8 } },
+    { type: 'asteroids', x: 2200, y: 600,  name: 'Jagged Asteroids',     loot: { 'obsidian-shard': 6, 'magma-ore': 4 } },
+  ],
+  'outerrim': [
+    { type: 'derelict',  x: 1800, y: 1200, name: 'Abandoned Station',    loot: { 'scrap-metal': 12, 'restricted-data': 1 } },
+    { type: 'derelict',  x: 600,  y: 1600, name: 'Military Wreck',       loot: { 'black-market-arms': 3, 'stolen-tech': 2 } },
+    { type: 'asteroids', x: 2000, y: 2000, name: 'Rich Ore Belt',        loot: { 'magma-ore': 8, 'thermal-core': 4 } },
+  ],
+  'nebula': [
+    { type: 'derelict',  x: 1000, y: 1400, name: 'Alien Hulk',           loot: { 'ancient-relic': 5, 'restricted-data': 3 } },
+    { type: 'derelict',  x: 2400, y: 1000, name: 'Research Station X',    loot: { 'stolen-tech': 4, 'cryo-compound': 6 } },
+    { type: 'asteroids', x: 600,  y: 600,  name: 'Nebula Crystals',       loot: { 'ice-crystal': 10, 'dust-crystal': 8 } },
+    { type: 'derelict',  x: 1800, y: 2600, name: 'Signal Source',         loot: { 'restricted-data': 4, 'ancient-relic': 4 } },
+  ],
+  'void': [
+    { type: 'derelict',  x: 800,  y: 1200, name: 'Void Wraith',          loot: { 'ancient-relic': 8, 'restricted-data': 5 } },
+    { type: 'derelict',  x: 2200, y: 1800, name: 'Unknown Structure',     loot: { 'stolen-tech': 6, 'thermal-core': 6 } },
+    { type: 'asteroids', x: 1200, y: 2400, name: 'Dark Matter Cluster',   loot: { 'obsidian-shard': 10, 'magma-ore': 8 } },
+    { type: 'derelict',  x: 2600, y: 600,  name: 'The Archive',           loot: { 'restricted-data': 8, 'ancient-relic': 6 } },
+  ],
 };
 
 // ── Station NPCs & dialog ────────────────────────────────────────────────────
@@ -469,6 +563,21 @@ const STATION_NPCS = {
         "The markets here pay premium for Thermal Cores.",
         "If you can make it to Kepler and back, there's profit to be made.",
         "Cryo Compounds from the ice worlds sell well in Sol.",
+      ]},
+  ],
+  'outerrim': [
+    { name: 'Patch', role: 'Scavenger Boss',
+      dialog: [
+        "Welcome to the edge of civilization, friend.",
+        "Out here, we don't ask where things came from.",
+        "Need something? Everything's for sale. Everything.",
+      ]},
+    { name: 'Specter', role: 'Intel Broker',
+      dialog: [
+        "The Void... I've been there. Once.",
+        "The ships out there aren't like anything we've built.",
+        "They don't follow our rules. They don't communicate.",
+        "Whatever you do, don't go to The Eye.",
       ]},
   ],
   'kepler': [
@@ -610,7 +719,11 @@ const RARE_RESOURCES = {
 const EXPLORATION_BOUNTIES = {
   'sol':            { name: 'Chart Sol System',       reward: 200, required: ['Terra Nova', 'Glacius', 'Inferno', 'Dust Rock', 'New Eden'] },
   'alpha-centauri': { name: 'Chart Alpha Centauri',   reward: 400, required: ['Frostheim', 'Ashfall', 'Pyroclast', 'Haven', 'Cryo-9', 'Void Scar'] },
-  'kepler':         { name: 'Chart Kepler Expanse',   reward: 600, required: ['Hellion', 'Crucible', 'Graveyard', 'Deep Freeze', 'Oasis'] },
+  'kepler':         { name: 'Chart Kepler Expanse',   reward: 600,  required: ['Hellion', 'Crucible', 'Graveyard', 'Deep Freeze', 'Oasis'] },
+  'deadzone':       { name: 'Chart The Dead Zone',   reward: 800,  required: ['Wreckage Field', 'Scrap Heap', 'Ember'] },
+  'outerrim':       { name: 'Chart Outer Rim',       reward: 1000, required: ['Exile', 'Rustworld', 'Slagforge', 'Desolation'] },
+  'nebula':         { name: 'Chart Xenith Nebula',   reward: 1500, required: ['Anomaly Prime', 'Frozen Signal', 'Genesis', 'The Monolith'] },
+  'void':           { name: 'Chart The Void',        reward: 2500, required: ['The Eye', 'Whisper', 'Terminus', 'Last Garden', 'Oblivion'] },
 };
 
 // ── Ship upgrade definitions ─────────────────────────────────────────────────
