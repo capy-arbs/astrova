@@ -200,7 +200,7 @@ class FlightScene extends Phaser.Scene {
     // ── Collisions ───────────────────────────────────────────────────
     this.physics.add.overlap(this.bullets, this.enemies, this._bulletHitEnemy, null, this);
     this.physics.add.overlap(this.player, this.enemies, this._enemyHitPlayer, null, this);
-    this.physics.add.overlap(this.bullets, this.police, this._bulletHitPolice, null, this);
+    this.physics.add.overlap(this.bullets, this.police, this._bulletHitPolice, null, this); // player + drone bullets hit police
     this.physics.add.overlap(this.player, this.police, this._policeContactPlayer, null, this);
     this.physics.add.overlap(this.enemyBullets, this.player, this._enemyBulletHitPlayer, null, this);
     // Enemy bullets can hit drones too
@@ -1026,11 +1026,17 @@ class FlightScene extends Phaser.Scene {
       this.enemies.children.each(e => {
         if (!e.active) return;
         const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y);
-        if (d < nearestDist) {
-          nearestDist = d;
-          nearestEnemy = e;
-        }
+        if (d < nearestDist) { nearestDist = d; nearestEnemy = e; }
       });
+
+      // Also target police when wanted
+      if (SpaceState.wanted) {
+        this.police.children.each(p => {
+          if (!p.active) return;
+          const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, p.x, p.y);
+          if (d < nearestDist) { nearestDist = d; nearestEnemy = p; }
+        });
+      }
 
       if (nearestEnemy) {
         drone.setData('state', 'attack');
