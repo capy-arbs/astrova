@@ -235,8 +235,8 @@ class FlightScene extends Phaser.Scene {
 
     const droneMax = SpaceState.getDroneMax();
     if (droneMax > 0) {
-      // Fill bay on first use
-      if (SpaceState.dronesInBay === 0) {
+      // Fill bay on first use or if bay + active is 0 (fresh ship)
+      if (SpaceState.dronesInBay === 0 && this.drones.length === 0) {
         SpaceState.dronesInBay = droneMax;
       }
     }
@@ -309,9 +309,10 @@ class FlightScene extends Phaser.Scene {
     if (up) ay = -1; if (down) ay = 1;
     if (left) ax = -1; if (right) ax = 1;
 
+    const shipAccel = SpaceState.getAcceleration();
     if (ax !== 0 || ay !== 0) {
       const len = Math.sqrt(ax*ax + ay*ay);
-      this.player.setAcceleration((ax/len) * 500, (ay/len) * 500);
+      this.player.setAcceleration((ax/len) * shipAccel, (ay/len) * shipAccel);
       this.facingAngle = Math.atan2(ay/len, ax/len);
     } else {
       this.player.setAcceleration(0, 0);

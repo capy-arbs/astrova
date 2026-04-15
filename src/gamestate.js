@@ -420,6 +420,19 @@ const SpaceState = {
     return shipDef.spriteKey;
   },
 
+  getAcceleration() {
+    const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
+    if (shipDef === SHIPS['klaed-dreadnought']) return 60;
+    if (shipDef === SHIPS['klaed-supercarrier']) return 80;
+    if (shipDef === SHIPS['nairan-dreadnought']) return 100;
+    if (shipDef === SHIPS['nautolan-carrier']) return 100;
+    if (shipDef === SHIPS['nairan-battlecruiser']) return 150;
+    if (shipDef === SHIPS['nairan-interceptor'] || shipDef === SHIPS['starter-explorer']) return 600;
+    if (shipDef.size === 128) return 150;
+    if (shipDef.size === 64) return 400;
+    return 500;
+  },
+
   getTurnRate() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
     // Smaller ships turn fast, capitals turn like trucks
