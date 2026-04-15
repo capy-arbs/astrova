@@ -213,10 +213,10 @@ class PlanetScene extends Phaser.Scene {
     this.lastPlayerPos = { x: this.player.x, y: this.player.y };
 
     // ── Story quest: land on planet ─────────────────────────────────
-    if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
+    if (SpaceState.activeStoryQuest) {
       const sq = STORY_QUESTS[SpaceState.storyProgress];
       if (sq && sq.goal.type === 'land' && sq.goal.planet === this.planetInfo.name) {
-        SpaceState.activeMission.progress = 1;
+        SpaceState.activeStoryQuest.progress = 1;
       }
     }
 
@@ -336,21 +336,21 @@ class PlanetScene extends Phaser.Scene {
         if (gained > 0) this._domFloat(node.x, node.y - 16, `Mining LV${SpaceState.skills.mining.level}!`, '#ffee44');
 
         // Story quest: deliver resource tracking
-        if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
+        if (SpaceState.activeStoryQuest) {
           const sq = STORY_QUESTS[SpaceState.storyProgress];
           if (sq && sq.goal.type === 'deliver' && sq.goal.resource === node.resource) {
-            SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + amount;
-            if (SpaceState.activeMission.progress >= sq.goal.count) {
+            SpaceState.activeStoryQuest.progress = (SpaceState.activeStoryQuest.progress || 0) + amount;
+            if (SpaceState.activeStoryQuest.progress >= sq.goal.count) {
               this._domFloat(node.x, node.y - 30, 'Story objective complete! Return to station.', '#ffcc44');
             }
           }
         }
 
         // Repeatable mission: deliver tracking
-        if (SpaceState.activeMission && !SpaceState.activeMission.id.startsWith('s')) {
-          const m = MISSIONS.find(mi => mi.id === SpaceState.activeMission.id);
+        if (SpaceState.activeContract) {
+          const m = MISSIONS.find(mi => mi.id === SpaceState.activeContract.id);
           if (m && m.goal.type === 'deliver' && m.goal.resource === node.resource) {
-            SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + amount;
+            SpaceState.activeContract.progress = (SpaceState.activeContract.progress || 0) + amount;
           }
         }
       }
@@ -413,14 +413,20 @@ class PlanetScene extends Phaser.Scene {
     document.getElementById('hud-location').textContent = this.planetInfo.name + (this.shiftKey && this.shiftKey.isDown ? ' [SPRINT]' : '') + ' | [Q] Scan | [I] Cargo | [E] Ship';
 
     // Quest progress
-    if (SpaceState.activeMission) {
+    if (SpaceState.activeStoryQuest) {
       const sq = STORY_QUESTS[SpaceState.storyProgress];
-      const m = MISSIONS.find(mi => mi.id === SpaceState.activeMission.id);
-      const quest = SpaceState.activeMission.id.startsWith('s') ? sq : m;
-      if (quest) {
-        const prog = SpaceState.activeMission.progress || 0;
-        const goal = quest.goal.count || quest.goal.amount || 1;
-        document.getElementById('hud-location').textContent += ` | Quest: ${prog}/${goal}`;
+      if (sq) {
+        const p = SpaceState.activeStoryQuest.progress || 0;
+        const g = sq.goal.count || sq.goal.amount || 1;
+        document.getElementById('hud-location').textContent += ` | ★ ${p}/${g}`;
+      }
+    }
+    if (SpaceState.activeContract) {
+      const m = MISSIONS.find(mi => mi.id === SpaceState.activeContract.id);
+      if (m) {
+        const p = SpaceState.activeContract.progress || 0;
+        const g = m.goal.count || m.goal.amount || 1;
+        document.getElementById('hud-location').textContent += ` | • ${p}/${g}`;
       }
     }
   }

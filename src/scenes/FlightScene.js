@@ -432,10 +432,10 @@ class FlightScene extends Phaser.Scene {
           if (g > 0) this._domFloat(this.player.x, this.player.y - 50, `Exploration LV${SpaceState.skills.exploration.level}!`, '#ffee44');
 
           // Story quest: discover planets
-          if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
+          if (SpaceState.activeStoryQuest) {
             const sq = STORY_QUESTS[SpaceState.storyProgress];
             if (sq && sq.goal.type === 'discover') {
-              SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + 1;
+              SpaceState.activeStoryQuest.progress = (SpaceState.activeMission.progress || 0) + 1;
             }
           }
 
@@ -486,10 +486,10 @@ class FlightScene extends Phaser.Scene {
           this._domFloat(obj.x, obj.y - 40, 'Salvaged!', '#ddaa44');
 
           // Story quest: salvage specific derelict
-          if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
+          if (SpaceState.activeStoryQuest) {
             const sq = STORY_QUESTS[SpaceState.storyProgress];
             if (sq && sq.goal.type === 'salvage' && sq.goal.target === obj.name) {
-              SpaceState.activeMission.progress = 1;
+              SpaceState.activeStoryQuest.progress = 1;
               this._domFloat(obj.x, obj.y - 60, 'Story objective complete!', '#ffcc44', 2000);
             }
           }
@@ -678,10 +678,10 @@ class FlightScene extends Phaser.Scene {
     SpaceState.checkSkillUp('warpDrive');
 
     // Story quest: reach system
-    if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
+    if (SpaceState.activeStoryQuest) {
       const sq = STORY_QUESTS[SpaceState.storyProgress];
       if (sq && sq.goal.type === 'reach' && sq.goal.system === targetSystem) {
-        SpaceState.activeMission.progress = 1;
+        SpaceState.activeStoryQuest.progress = 1;
         this._domFloat(this.player.x, this.player.y - 30, 'Story objective reached!', '#ffcc44', 2000);
       }
     }
@@ -772,13 +772,13 @@ class FlightScene extends Phaser.Scene {
       this._domFloat(enemy.x, enemy.y, `+${creditReward} cr`, '#ddcc44');
       if (g > 0) this._domFloat(enemy.x, enemy.y - 20, `Combat LV${SpaceState.skills.combat.level}!`, '#ffee44');
 
-      // Mission kill tracking
-      if (SpaceState.activeMission) {
-        const m = MISSIONS.find(mi => mi.id === SpaceState.activeMission.id);
+      // Contract kill tracking
+      if (SpaceState.activeContract) {
+        const m = MISSIONS.find(mi => mi.id === SpaceState.activeContract.id);
         if (m && m.goal.type === 'kill') {
-          SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + 1;
-          if (SpaceState.activeMission.progress >= m.goal.count) {
-            this._domFloat(this.player.x, this.player.y - 40, 'Mission complete! Return to station.', '#ffcc44', 2000);
+          SpaceState.activeContract.progress = (SpaceState.activeContract.progress || 0) + 1;
+          if (SpaceState.activeContract.progress >= m.goal.count) {
+            this._domFloat(this.player.x, this.player.y - 40, 'Contract complete! Return to station.', '#44ff44', 2000);
           }
         }
       }
@@ -1138,22 +1138,26 @@ class FlightScene extends Phaser.Scene {
     // Quest tracker
     const questEl = document.getElementById('hud-quest');
     if (questEl) {
-      if (SpaceState.activeMission) {
-        const sq = SpaceState.activeMission.id.startsWith('s') ? STORY_QUESTS[SpaceState.storyProgress] : null;
-        const m = sq ? null : MISSIONS.find(mi => mi.id === SpaceState.activeMission.id);
-        const quest = sq || m;
-        if (quest) {
-          const prog = SpaceState.activeMission.progress || 0;
-          const goal = quest.goal.count || quest.goal.amount || 1;
-          const prefix = sq ? '★' : '•';
-          questEl.textContent = `${prefix} ${quest.name}: ${prog}/${goal}`;
-          questEl.style.color = prog >= goal ? '#44ff44' : '#ffcc44';
-        } else {
-          questEl.textContent = '';
+      let qt = '';
+      if (SpaceState.activeStoryQuest) {
+        const sq = STORY_QUESTS[SpaceState.storyProgress];
+        if (sq) {
+          const p = SpaceState.activeStoryQuest.progress || 0;
+          const g = sq.goal.count || sq.goal.amount || 1;
+          qt += `★ ${sq.name}: ${p}/${g}`;
+          questEl.style.color = p >= g ? '#44ff44' : '#ffcc44';
         }
-      } else {
-        questEl.textContent = '';
       }
+      if (SpaceState.activeContract) {
+        const m = MISSIONS.find(mi => mi.id === SpaceState.activeContract.id);
+        if (m) {
+          const p = SpaceState.activeContract.progress || 0;
+          const g = m.goal.count || m.goal.amount || 1;
+          if (qt) qt += '  |  ';
+          qt += `• ${m.name}: ${p}/${g}`;
+        }
+      }
+      questEl.textContent = qt;
     }
 
     // Wanted status

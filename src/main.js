@@ -423,18 +423,17 @@ function _stationEquipTab() {
 
 function _stationMissionsTab() {
   const sys = SpaceState.currentSystem;
-  const active = SpaceState.activeMission;
   let html = '';
 
   // ── Story Quest ────────────────────────────────
   const storyIdx = SpaceState.storyProgress;
   if (storyIdx < STORY_QUESTS.length) {
     const sq = STORY_QUESTS[storyIdx];
-    const isStoryActive = active && active.id === sq.id;
+    const isStoryActive = !!SpaceState.activeStoryQuest;
 
     html += `<div style="font-size:13px;color:#ffcc44;margin-bottom:6px;">STORY</div>`;
     if (isStoryActive) {
-      const prog = active.progress || 0;
+      const prog = SpaceState.activeStoryQuest.progress || 0;
       const goal = sq.goal.count || 1;
       html += `<div style="background:#1a1a1a;border:1px solid #554422;border-radius:6px;padding:8px;margin-bottom:10px;">
         <div style="font-size:12px;color:#ffcc44;">${sq.name}</div>
@@ -444,7 +443,7 @@ function _stationMissionsTab() {
         ${prog >= goal ?
           `<button onclick="completeStoryQuest()" style="margin-top:6px;width:100%;background:#1a2a1a;color:#ffcc44;border:1px solid #ffcc44;border-radius:4px;padding:4px;cursor:pointer;font-size:11px;">Complete Story Quest</button>` : ''}
       </div>`;
-    } else if (!active) {
+    } else if (!SpaceState.activeStoryQuest) {
       html += `<div style="background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:8px;margin-bottom:10px;">
         <div style="font-size:12px;color:#ffcc44;">${sq.name}</div>
         <div style="font-size:10px;color:#aaa;margin-top:3px;">${sq.desc}</div>
@@ -456,11 +455,11 @@ function _stationMissionsTab() {
     html += `<div style="color:#554422;font-size:11px;margin-bottom:10px;text-align:center;">Story complete — for now...</div>`;
   }
 
-  // ── Active Mission ────────────────────────────
-  if (active && !active.id.startsWith('s')) {
-    const mission = MISSIONS.find(m => m.id === active.id);
+  // ── Active Contract ────────────────────────────
+  if (SpaceState.activeContract) {
+    const mission = MISSIONS.find(m => m.id === SpaceState.activeContract.id);
     if (mission) {
-      const prog = active.progress || 0;
+      const prog = SpaceState.activeContract.progress || 0;
       const goal = mission.goal.count || mission.goal.amount;
       html += `<div style="background:#1a1a2a;border:1px solid #445;border-radius:6px;padding:8px;margin-bottom:10px;">
         <div style="font-size:12px;color:#6699ff;">ACTIVE: ${mission.name}</div>
@@ -479,7 +478,7 @@ function _stationMissionsTab() {
   if (available.length === 0) {
     html += '<div style="color:#555;font-size:11px;">No contracts in this system.</div>';
   } else {
-    const canAccept = !active || active.id.startsWith('s');
+    const canAccept = !SpaceState.activeContract;
     html += available.map(m => `<div style="padding:4px 0;border-bottom:1px solid #1a1a22;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <span style="font-size:11px;color:#aabbcc;">${m.name}</span>
@@ -532,14 +531,21 @@ function sellCargo(key) {
   SpaceState.checkSkillUp('trading');
   SpaceState.checkSkillUp('reputation');
 
-  // Mission tracking (deliver + sell types)
-  if (SpaceState.activeMission) {
-    const m = MISSIONS.find(mi => mi.id === SpaceState.activeMission.id);
+  // Contract tracking (deliver + sell types)
+  if (SpaceState.activeContract) {
+    const m = MISSIONS.find(mi => mi.id === SpaceState.activeContract.id);
     if (m && m.goal.type === 'deliver' && m.goal.resource === key) {
-      SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + 1;
+      SpaceState.activeContract.progress = (SpaceState.activeContract.progress || 0) + 1;
     }
     if (m && m.goal.type === 'sell') {
-      SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + sellPrice;
+      SpaceState.activeContract.progress = (SpaceState.activeContract.progress || 0) + sellPrice;
+    }
+  }
+  // Story quest tracking (deliver type at station)
+  if (SpaceState.activeStoryQuest) {
+    const sq = STORY_QUESTS[SpaceState.storyProgress];
+    if (sq && sq.goal.type === 'deliver' && sq.goal.resource === key) {
+      SpaceState.activeStoryQuest.progress = (SpaceState.activeStoryQuest.progress || 0) + 1;
     }
   }
 
@@ -599,7 +605,7 @@ function buyUpgrade(idx) {
 function acceptStoryQuest() {
   const sq = STORY_QUESTS[SpaceState.storyProgress];
   if (!sq) return;
-  SpaceState.activeMission = { id: sq.id, progress: 0 };
+  SpaceState.activeStoryQuest = { id: sq.id, progress: 0 };
   _renderStation();
 }
 
@@ -610,34 +616,32 @@ function completeStoryQuest() {
   SpaceState.skills.reputation.totalExp += 30;
   SpaceState.checkSkillUp('reputation');
   SpaceState.storyProgress++;
-  SpaceState.activeMission = null;
+  SpaceState.activeStoryQuest = null;
   _renderStation();
 }
 
 function acceptMission(id) {
-  if (SpaceState.activeMission) return;
+  if (SpaceState.activeContract) return;
   const mission = MISSIONS.find(m => m.id === id);
   if (!mission) return;
-  SpaceState.activeMission = { id, progress: 0 };
-  SpaceState.killCount = 0;
-  SpaceState.totalSoldValue = 0;
+  SpaceState.activeContract = { id, progress: 0 };
   _renderStation();
 }
 
 function completeMission() {
-  if (!SpaceState.activeMission) return;
-  const mission = MISSIONS.find(m => m.id === SpaceState.activeMission.id);
+  if (!SpaceState.activeContract) return;
+  const mission = MISSIONS.find(m => m.id === SpaceState.activeContract.id);
   if (!mission) return;
   SpaceState.player.credits += mission.reward.credits;
   SpaceState.skills.reputation.totalExp += 20;
   SpaceState.checkSkillUp('reputation');
   SpaceState.completedMissions.push(mission.id);
-  SpaceState.activeMission = null;
+  SpaceState.activeContract = null;
   _renderStation();
 }
 
 function abandonMission() {
-  SpaceState.activeMission = null;
+  SpaceState.activeContract = null;
   _renderStation();
 }
 

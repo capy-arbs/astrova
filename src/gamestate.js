@@ -271,9 +271,10 @@ const SpaceState = {
   items: {},  // crafted consumables: key → qty
   discoveredPlanets: [],
   activeBuff: null, // { effect, amount, duration, timer }
-  activeMission: null,  // { id, progress }
+  activeStoryQuest: null,  // { id, progress }
+  activeContract: null,    // { id, progress }
   completedMissions: [],
-  storyProgress: 0,    // which story quest step we're on
+  storyProgress: 0,
   totalSoldValue: 0,
   killCount: 0,
   wanted: false,
@@ -457,7 +458,8 @@ const SpaceState = {
         items: { ...this.items },
         discoveredPlanets: [...this.discoveredPlanets],
         storyProgress: this.storyProgress,
-        activeMission: this.activeMission,
+        activeStoryQuest: this.activeStoryQuest,
+        activeContract: this.activeContract,
         completedMissions: [...this.completedMissions],
       }));
     } catch (e) {}
@@ -474,7 +476,8 @@ const SpaceState = {
       this.items = data.items || {};
       this.discoveredPlanets = data.discoveredPlanets || [];
       this.storyProgress = data.storyProgress || 0;
-      this.activeMission = data.activeMission || null;
+      this.activeStoryQuest = data.activeStoryQuest || data.activeMission || null;
+      this.activeContract = data.activeContract || null;
       this.completedMissions = data.completedMissions || [];
       if (data.skills) {
         for (const key of Object.keys(data.skills)) {
