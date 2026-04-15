@@ -120,7 +120,7 @@ const SHIPS = {
   'nairan-smuggler': {
     name: 'Smuggler',        spriteKey: 'ship-nairan-torpedo', size: 64,
     hp: 90, shield: 60, speedBonus: 20, cost: 1500, pilotReq: 15,
-    scanEvasion: 0.7, // 70% chance to evade police scans
+    scanRange: 25, // police must be within 25px to scan (vs 80 default)
     path: _F2 + 'Nairan - Torpedo Ship - Base.png',
   },
   'nairan-dreadnought': {
@@ -285,9 +285,9 @@ const SpaceState = {
     return Object.keys(this.cargo).some(k => CONTRABAND[k]);
   },
 
-  getScanEvasion() {
+  getScanRange() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
-    return shipDef.scanEvasion || 0;
+    return shipDef.scanRange || 80; // default 80px, smuggler is 25px
   },
 
   addCargo(key, amount) { this.cargo[key] = (this.cargo[key] || 0) + amount; },

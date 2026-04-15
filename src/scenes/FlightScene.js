@@ -470,24 +470,26 @@ class FlightScene extends Phaser.Scene {
           p.setData('patrolTimer', p.getData('patrolTimer') - delta);
         }
 
-        // Scan player if close and carrying contraband
-        if (dist < 80 && SpaceState.hasContraband()) {
+        // Scan player if within scan range and carrying contraband
+        const scanRange = SpaceState.getScanRange();
+        if (dist < scanRange && SpaceState.hasContraband()) {
           if (!p.getData('scanCooldown') || p.getData('scanCooldown') <= 0) {
-            p.setData('scanCooldown', 10000); // only scan every 10s
-            const evasion = SpaceState.getScanEvasion();
-            if (Math.random() > evasion) {
-              // Caught!
-              SpaceState.wanted = true;
-              SpaceState.wantedTimer = 60; // 60 second wanted timer
-              this._domFloat(this.player.x, this.player.y - 30, 'CONTRABAND DETECTED! WANTED!', '#ff4444', 2000);
-            } else {
-              this._domFloat(this.player.x, this.player.y - 30, 'Scan evaded...', '#88ff88');
-            }
+            p.setData('scanCooldown', 10000);
+            // Always detected within range — no RNG
+            SpaceState.wanted = true;
+            SpaceState.wantedTimer = 60;
+            this._domFloat(this.player.x, this.player.y - 30, 'CONTRABAND DETECTED! WANTED!', '#ff4444', 2000);
           }
         }
-        if (p.getData('scanCooldown') > 0) {
-          p.setData('scanCooldown', p.getData('scanCooldown') - delta);
+        // Warning when police getting close with contraband
+        if (dist < scanRange + 40 && dist >= scanRange && SpaceState.hasContraband()) {
+          if (!p.getData('warnCooldown') || p.getData('warnCooldown') <= 0) {
+            p.setData('warnCooldown', 3000);
+            this._domFloat(this.player.x, this.player.y - 20, 'Police scanning nearby...', '#ffcc44');
+          }
         }
+        if (p.getData('scanCooldown') > 0) p.setData('scanCooldown', p.getData('scanCooldown') - delta);
+        if (p.getData('warnCooldown') > 0) p.setData('warnCooldown', p.getData('warnCooldown') - delta);
       }
     });
 
