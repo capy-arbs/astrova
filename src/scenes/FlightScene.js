@@ -348,9 +348,21 @@ class FlightScene extends Phaser.Scene {
       this.lastFired = time;
     }
 
-    // Clean up far bullets
+    // Update and clean up bullets
     this.bullets.children.each(b => {
-      if (b.active && Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) > 600) b.destroy();
+      if (!b.active) return;
+      if (Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) > 600) { b.destroy(); return; }
+
+      // Rocket acceleration
+      if (b.getData('accelerating')) {
+        const angle = b.getData('angle');
+        const maxSpd = b.getData('maxSpeed');
+        const curSpd = b.body.velocity.length();
+        if (curSpd < maxSpd) {
+          const newSpd = Math.min(maxSpd, curSpd + 600 * (delta / 1000)); // ramps up fast
+          b.setVelocity(Math.cos(angle) * newSpd, Math.sin(angle) * newSpd);
+        }
+      }
     });
 
     // ── Enemy AI ─────────────────────────────────────────────────────
@@ -637,9 +649,18 @@ class FlightScene extends Phaser.Scene {
     const oy = Math.sin(angle) * 24;
     const bullet = this.bullets.create(this.player.x + ox, this.player.y + oy, wep.bulletKey, 0);
     if (!bullet) return;
-    bullet.setVelocity(Math.cos(angle) * wep.bulletSpeed, Math.sin(angle) * wep.bulletSpeed);
     bullet.setAngle(this.player.angle);
     bullet.setDepth(8).setScale(0.8);
+    bullet.setData('angle', angle);
+
+    if (wep === WEAPONS['rockets']) {
+      // Rockets: start slow, accelerate over time
+      bullet.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
+      bullet.setData('accelerating', true);
+      bullet.setData('maxSpeed', wep.bulletSpeed);
+    } else {
+      bullet.setVelocity(Math.cos(angle) * wep.bulletSpeed, Math.sin(angle) * wep.bulletSpeed);
+    }
   }
 
   _landOnPlanet(planet) {
