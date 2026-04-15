@@ -2,16 +2,35 @@ SpaceState.load();
 
 const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
+// Responsive resolution — desktop sees more, mobile stays compact
+let gameWidth, gameHeight;
+if (isMobile) {
+  gameWidth = 480;
+  gameHeight = 640;
+} else {
+  // Use window size but cap and keep a reasonable aspect ratio
+  const maxW = Math.min(window.innerWidth - 20, 1200);
+  const maxH = Math.min(window.innerHeight - 20, 900);
+  // Scale down to pixel-art friendly sizes (divisible by 2)
+  gameWidth = Math.floor(maxW / 2) * 2;
+  gameHeight = Math.floor(maxH / 2) * 2;
+  // Minimum size
+  if (gameWidth < 480) gameWidth = 480;
+  if (gameHeight < 400) gameHeight = 400;
+}
+
 const config = {
   type: Phaser.AUTO,
-  width: 480,
-  height: 640,
+  width: gameWidth,
+  height: gameHeight,
   parent: 'game-wrapper',
   pixelArt: true,
   scale: isMobile ? {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-  } : {},
+  } : {
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
   physics: {
     default: 'arcade',
     arcade: { debug: false },
