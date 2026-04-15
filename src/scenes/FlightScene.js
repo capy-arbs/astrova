@@ -732,13 +732,15 @@ class FlightScene extends Phaser.Scene {
       if (this.dronesDeployed && this.droneActionState === 'idle') {
         const deployLimit = SpaceState.getDroneDeployLimit();
         if (SpaceState.dronesInBay > 0 && this.drones.length < deployLimit) {
-          this.droneReplaceTimer += delta;
-          if (this.droneReplaceTimer >= 5000) {
+          this.droneReplaceTimer = (this.droneReplaceTimer || 0) + delta;
+          if (this.droneReplaceTimer >= 3000) {
             this.droneReplaceTimer = 0;
             SpaceState.dronesInBay--;
             this._spawnDrone(this.drones.length, deployLimit);
             this._domFloat(this.player.x, this.player.y - 30, `Replacement drone launched (${SpaceState.dronesInBay} in bay)`, '#88ccff');
           }
+        } else {
+          this.droneReplaceTimer = 0; // reset when not needed
         }
       }
     }

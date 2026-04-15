@@ -436,11 +436,11 @@ const SpaceState = {
   getTurnRate() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
     // Smaller ships turn fast, capitals turn like trucks
-    if (shipDef === SHIPS['klaed-dreadnought']) return 0.025;
-    if (shipDef === SHIPS['klaed-supercarrier']) return 0.03;
-    if (shipDef === SHIPS['nairan-dreadnought']) return 0.04;
-    if (shipDef === SHIPS['nautolan-carrier']) return 0.04;
-    if (shipDef === SHIPS['nairan-battlecruiser']) return 0.05;
+    if (shipDef === SHIPS['klaed-dreadnought']) return 0.012;
+    if (shipDef === SHIPS['klaed-supercarrier']) return 0.015;
+    if (shipDef === SHIPS['nairan-dreadnought']) return 0.02;
+    if (shipDef === SHIPS['nautolan-carrier']) return 0.02;
+    if (shipDef === SHIPS['nairan-battlecruiser']) return 0.03;
     if (shipDef.size === 128) return 0.05;
     if (shipDef === SHIPS['nairan-interceptor'] || shipDef === SHIPS['starter-explorer']) return 0.18;
     if (shipDef.size === 64) return 0.10;
@@ -535,6 +535,7 @@ const SpaceState = {
         storyProgress: this.storyProgress,
         activeStoryQuest: this.activeStoryQuest,
         activeContract: this.activeContract,
+        dronesInBay: this.dronesInBay,
         completedMissions: [...this.completedMissions],
       }));
     } catch (e) {}
@@ -553,6 +554,7 @@ const SpaceState = {
       this.storyProgress = data.storyProgress || 0;
       this.activeStoryQuest = data.activeStoryQuest || data.activeMission || null;
       this.activeContract = data.activeContract || null;
+      this.dronesInBay = data.dronesInBay || 0;
       this.completedMissions = data.completedMissions || [];
       if (data.skills) {
         for (const key of Object.keys(data.skills)) {
