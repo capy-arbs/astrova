@@ -14,24 +14,125 @@
 
 ---
 
+## Galaxy Map
+
+```
+                         ┌───────────┐
+                         │ Outer Rim │
+                         │ (Layer 3) │
+                         └─┬───────┬─┘
+                           │       │
+              ┌────────────┘       └────────────┐
+              │                                 │
+     ┌────────┴──────┐                  ┌───────┴───┐
+     │Alpha Centauri │                  │ The Void  │
+     │  (Layer 2)    │                  │ (Layer 4) │
+     └─┬──────────┬──┘                  └───────┬───┘
+       │          │                             │
+  ┌────┴───┐  ┌──┴──────────┐          ┌───────┴────┐
+  │  Sol   │  │   Kepler    │          │   Nebula   │
+  │(Layer 1)│  │  (Layer 2)  │          │  (Layer 4) │
+  └────────┘  └──┬──────────┘          └───────┬────┘
+                 │                             │
+                 └──────┐  ┌───────────────────┘
+                        │  │
+                   ┌────┴──┴────┐
+                   │ Dead Zone  │
+                   │ (Layer 3)  │
+                   └────────────┘
+```
+
+**Two paths to The Void:**
+1. Sol → Alpha Centauri → Outer Rim → The Void
+2. Sol → Alpha Centauri → Kepler → Dead Zone → Nebula → The Void
+
+---
+
 ## Star Systems
 
-### Sol System (Starter)
+### Layer 1 — Core (Safe, Civilized)
+
+#### Sol System (Starter)
 - **Planets:** Terra Nova, Glacius, Inferno, Dust Rock, New Eden
-- **Enemies:** 20
-- **Jump Gates:** Alpha Centauri Gate (east edge)
+- **Enemies:** 20 Kla'ed (10cr/kill)
+- **Station:** Yes — full services
+- **Police:** 4 patrols
+- **Traders:** 3
+- **Jump Gates:** Alpha Centauri
+- **Settlements:** Terra Nova (New Hope Colony)
 
-### Alpha Centauri
+### Layer 2 — Settled (Contested, Developed)
+
+#### Alpha Centauri
 - **Planets:** Frostheim, Ashfall, Pyroclast, Haven, Cryo-9, Void Scar
-- **Enemies:** 30
-- **Jump Gates:** Sol Gate (west), Kepler Gate (north)
+- **Enemies:** 30 Kla'ed (10cr/kill)
+- **Station:** Yes
+- **Police:** 3 patrols
+- **Traders:** 4
+- **Jump Gates:** Sol, Kepler, Outer Rim
+- **Settlements:** Glacius (Cryo Station Omega), Haven (Free Port Haven — contraband)
 
-### Kepler Expanse
+#### Kepler Expanse
 - **Planets:** Hellion, Crucible, Graveyard, Deep Freeze, Oasis
-- **Enemies:** 40
-- **Jump Gates:** Alpha Centauri Gate (south)
+- **Enemies:** 40 Kla'ed (10cr/kill)
+- **Station:** Yes
+- **Police:** 2 patrols
+- **Traders:** 2
+- **Jump Gates:** Alpha Centauri, Dead Zone
 
-Each system has a station at the center for trading, repairs, and upgrades.
+### Layer 3 — Frontier (Lawless, Pirates)
+
+#### The Dead Zone
+- **Planets:** Wreckage Field, Scrap Heap, Ember
+- **Enemies:** 35 Pirates — red-tinted (30cr/kill, HP 3-10)
+- **Station:** None — lawless territory
+- **Police:** None
+- **Traders:** 1 (brave soul)
+- **Jump Gates:** Kepler, Nebula
+- **Notable:** Rich salvage — Pirate Wreck, Colony Ship Debris
+
+#### Outer Rim
+- **Planets:** Exile, Rustworld, Slagforge, Desolation
+- **Enemies:** 40 Pirates — red-tinted (30cr/kill)
+- **Station:** Yes — scavenger-run outpost
+- **Police:** None
+- **Traders:** 1
+- **Jump Gates:** Alpha Centauri, The Void
+- **NPCs:** Patch (Scavenger Boss), Specter (Intel Broker)
+
+### Layer 4 — Unknown (Alien, Bizarre, Deadly)
+
+#### Xenith Nebula
+- **Planets:** Anomaly Prime, Frozen Signal, Genesis, The Monolith
+- **Enemies:** 50 Aliens — purple-tinted (40cr/kill, HP 4-25)
+- **Station:** None
+- **Police:** None
+- **Traders:** None
+- **Jump Gates:** Dead Zone, The Void
+- **Notable:** Alien Hulk, Research Station X, Signal Source — richest salvage
+
+#### The Void
+- **Planets:** The Eye, Whisper, Terminus, Last Garden, Oblivion
+- **Enemies:** 60 Aliens including **Leviathans** (25 HP, 40cr/kill)
+- **Station:** None
+- **Police:** None
+- **Traders:** None
+- **Jump Gates:** Nebula, Outer Rim
+- **Notable:** Void Wraith, Unknown Structure, The Archive — endgame salvage
+
+### Exploration Bounties
+
+Discover all planets in a system for a credit reward:
+
+| System | Reward | Planets Required |
+|--------|--------|-----------------|
+| Sol | 200cr | 5 planets |
+| Alpha Centauri | 400cr | 6 planets |
+| Kepler | 600cr | 5 planets |
+| Dead Zone | 800cr | 3 planets |
+| Outer Rim | 1,000cr | 4 planets |
+| Xenith Nebula | 1,500cr | 4 planets |
+| The Void | 2,500cr | 5 planets |
 
 ---
 
@@ -80,17 +181,21 @@ All 15 skills use the RuneScape XP formula (levels 1-99). Every skill levels by 
 
 Purchase ships at any station's Shipyard. Requires Piloting level + credits.
 
-| Ship | HP | Shield | Speed | Cost | Pilot Req | Special |
-|------|----|--------|-------|------|-----------|---------|
-| Starter Ship | 100 | 50 | +0 | Free | 1 | Damage state visuals |
-| Nairan Scout | 80 | 75 | +15 | 300 | 5 | Fast, light |
-| Nairan Fighter | 120 | 80 | +5 | 500 | 8 | Balanced |
-| Nautolan Fighter | 140 | 100 | +0 | 800 | 12 | Tanky medium |
-| Nairan Frigate | 180 | 120 | -5 | 1,200 | 18 | Heavy |
-| Nautolan Frigate | 200 | 150 | -10 | 2,000 | 25 | Very tanky |
-| Battlecruiser | 300 | 200 | -20 | 5,000 | 35 | Slow fortress |
-| Battleship | 500 | 300 | -35 | 10,000 | 45 | Maximum tank |
-| Carrier | 350 | 250 | -30 | 15,000 | 50 | **Spawns combat drones** |
+| Ship | HP | Shield | Speed | Cargo | Cost | Pilot | Special |
+|------|----|--------|-------|-------|------|-------|---------|
+| Starter Ship | 100 | 50 | +0 | 25 | Free | 1 | Damage visuals |
+| Nairan Scout | 80 | 75 | +15 | 25 | 300 | 5 | Fast, light |
+| Nairan Fighter | 120 | 80 | +5 | 25 | 500 | 8 | Balanced |
+| Mining Barge | 160 | 80 | -15 | 40 | 2,000 | 10 | **+3 mining bonus** |
+| Nautolan Fighter | 140 | 100 | +0 | 25 | 800 | 12 | Tanky medium |
+| Trade Hauler | 140 | 100 | -10 | 60 | 3,000 | 12 | **+15% sell bonus, biggest cargo** |
+| Smuggler | 90 | 60 | +20 | 20 | 1,500 | 15 | **Cloak device, 25px scan range** |
+| Nairan Frigate | 180 | 120 | -5 | 25 | 1,200 | 18 | Heavy |
+| Interceptor | 60 | 40 | +40 | 10 | 4,000 | 20 | **Fastest ship, glass cannon** |
+| Nautolan Frigate | 200 | 150 | -10 | 25 | 2,000 | 25 | Very tanky |
+| Battlecruiser | 300 | 200 | -20 | 25 | 5,000 | 35 | Slow fortress |
+| Battleship | 500 | 300 | -35 | 25 | 10,000 | 45 | Maximum tank |
+| Carrier | 350 | 250 | -30 | 25 | 15,000 | 50 | **Spawns 4+ combat drones** |
 
 ### Carrier Drones
 - Base 4 drones, +1 at Drone Command LV 15, 30, 45 (max 7)
@@ -156,17 +261,29 @@ Each planet has 12 resource nodes scattered across an 800x800 surface. Walk over
 
 ## Enemies
 
-3 enemy types from the Kla'ed faction. Enemies respawn 15 seconds after being killed.
+Enemies respawn 15 seconds after being killed. Rewards scale by layer.
 
-| Enemy | HP | Speed | Aggro Range | Scale |
-|-------|----|-------|-------------|-------|
-| Fighter | 2 | 70 | 350px | Medium |
-| Scout | 1 | 100 | 450px | Small, fast |
-| Bomber | 4 | 40 | 300px | Large, slow |
+### Layer 1-2: Kla'ed (Core & Settled)
+| Enemy | HP | Speed | Aggro | Credits |
+|-------|----|-------|-------|---------|
+| Kla'ed Fighter | 2 | 70 | 350px | 10 (L1) / 20 (L2) |
+| Kla'ed Scout | 1 | 100 | 450px | 10 / 20 |
+| Kla'ed Bomber | 4 | 40 | 300px | 10 / 20 |
 
-Kills award: +10 credits, +15 Combat XP, +5 Gunnery XP per hit.
+### Layer 3: Pirates (Frontier) — Red-tinted
+| Enemy | HP | Speed | Aggro | Credits |
+|-------|----|-------|-------|---------|
+| Pirate Frigate | 5 | 60 | 400px | 30 |
+| Pirate Torpedo | 3 | 90 | 450px | 30 |
+| Pirate Cruiser | 10 | 35 | 350px | 30 |
 
-Enemy count scales by system: Sol (20), Alpha Centauri (30), Kepler (40).
+### Layer 4: Aliens (Unknown) — Purple-tinted
+| Enemy | HP | Speed | Aggro | Credits |
+|-------|----|-------|-------|---------|
+| Alien Scout | 4 | 110 | 500px | 40 |
+| Alien Fighter | 8 | 80 | 450px | 40 |
+| Alien Battleship | 15 | 50 | 400px | 40 |
+| **Alien Leviathan** | **25** | 30 | 350px | 40 |
 
 ---
 
