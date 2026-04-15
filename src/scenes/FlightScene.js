@@ -1135,6 +1135,27 @@ class FlightScene extends Phaser.Scene {
       cloakEl.remove();
     }
 
+    // Quest tracker
+    const questEl = document.getElementById('hud-quest');
+    if (questEl) {
+      if (SpaceState.activeMission) {
+        const sq = SpaceState.activeMission.id.startsWith('s') ? STORY_QUESTS[SpaceState.storyProgress] : null;
+        const m = sq ? null : MISSIONS.find(mi => mi.id === SpaceState.activeMission.id);
+        const quest = sq || m;
+        if (quest) {
+          const prog = SpaceState.activeMission.progress || 0;
+          const goal = quest.goal.count || quest.goal.amount || 1;
+          const prefix = sq ? '★' : '•';
+          questEl.textContent = `${prefix} ${quest.name}: ${prog}/${goal}`;
+          questEl.style.color = prog >= goal ? '#44ff44' : '#ffcc44';
+        } else {
+          questEl.textContent = '';
+        }
+      } else {
+        questEl.textContent = '';
+      }
+    }
+
     // Wanted status
     const locEl = document.getElementById('hud-location');
     if (SpaceState.wanted && locEl && !locEl.textContent.includes('WANTED')) {
