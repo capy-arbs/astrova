@@ -240,6 +240,12 @@ function hideCargoScreen() {
 
 // ── Station Screen (DOM) ─────────────────────────────────────────────────────
 let _stationOpen = false;
+let _stationTab = 'Trade';
+
+function switchStationTab(tab) {
+  _stationTab = tab;
+  _renderStation();
+}
 
 function showStationScreen() {
   // Clean up stale state
@@ -267,124 +273,184 @@ function _renderStation(el) {
   if (!el) el = document.getElementById('station-screen');
   if (!el) return;
 
+  const sys = SpaceState.currentSystem;
+  const tabs = ['Trade', 'Equip', 'Missions', 'NPCs'];
+  const tabBtns = tabs.map(t =>
+    `<button onclick="switchStationTab('${t}')" style="flex:1;background:${_stationTab===t?'#2a2a3a':'transparent'};color:${_stationTab===t?'#aabbcc':'#556'};border:1px solid ${_stationTab===t?'#445':'transparent'};border-bottom:none;border-radius:4px 4px 0 0;padding:5px;cursor:pointer;font-size:11px;font-weight:${_stationTab===t?'700':'400'}">${t}</button>`
+  ).join('');
+
+  let content = '';
+  if (_stationTab === 'Trade') content = _stationTradeTab();
+  else if (_stationTab === 'Equip') content = _stationEquipTab();
+  else if (_stationTab === 'Missions') content = _stationMissionsTab();
+  else if (_stationTab === 'NPCs') content = _stationNPCsTab();
+
+  el.innerHTML = `
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);" onclick="hideStationScreen()"></div>
+    <div style="position:relative;background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:20px;min-width:420px;max-width:600px;color:#ddd;" onclick="event.stopPropagation()">
+      <h2 style="text-align:center;font-size:15px;color:#aabbcc;margin-bottom:8px;">OUTPOST — ${STAR_SYSTEMS[sys].name}</h2>
+      <div style="display:flex;gap:2px;margin-bottom:0;">${tabBtns}</div>
+      <div style="border:1px solid #2a2a3a;border-radius:0 0 6px 6px;padding:12px;max-height:400px;overflow-y:auto;background:#0e0e14;">
+        ${content}
+      </div>
+      <div style="text-align:center;color:#ddcc44;font-size:13px;margin-top:8px;">Credits: ${SpaceState.player.credits}</div>
+      <div style="text-align:center;color:#445;font-size:11px;margin-top:2px;">[ESC] to undock</div>
+    </div>`;
+}
+
+function _stationTradeTab() {
   const cargo = SpaceState.cargo;
   const cargoKeys = Object.keys(cargo);
-  const discount = SpaceState.getSellMultiplier(); // unused but kept for reference
+  const mult = SpaceState.getSellMultiplier();
+  const sys = SpaceState.currentSystem;
+  const tradePrices = TRADE_PRICES[sys] || TRADE_PRICES['sol'];
 
-  // Sell buttons
   let sellHtml = '';
   if (cargoKeys.length === 0) {
-    sellHtml = '<div style="color:#666;font-size:12px;">No cargo to sell</div>';
+    sellHtml = '<div style="color:#666;font-size:12px;">Cargo hold empty</div>';
   } else {
     sellHtml = cargoKeys.map(key => {
       const def = RESOURCE_DEFS[key] || { name: key, color: '#fff', value: 0 };
-      const qty = cargo[key];
-      const price = Math.floor(def.value * SpaceState.getSellMultiplier());
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #222;">
-        <span style="color:${def.color};font-size:12px;">${def.name} x${qty}</span>
-        <button onclick="sellCargo('${key}')" style="background:#2a3a2a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:2px 10px;cursor:pointer;font-size:11px;">Sell (${price}cr)</button>
+      const isBonus = tradePrices.bonus.includes(key);
+      const price = Math.floor(def.value * mult * tradePrices.sell * (isBonus ? 1.5 : 1));
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
+        <span style="color:${def.color};font-size:12px;">${def.name} x${cargo[key]} ${isBonus ? '<span style="color:#ffcc44;font-size:9px;">HIGH DEMAND</span>' : ''}</span>
+        <button onclick="sellCargo('${key}')" style="background:#1a2a1a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">${price}cr</button>
       </div>`;
     }).join('');
   }
 
-  const mult = SpaceState.getSellMultiplier();
-  const sellAllValue = cargoKeys.reduce((s, k) => s + (cargo[k] * Math.floor((RESOURCE_DEFS[k]?.value || 0) * mult)), 0);
+  const sellAllValue = cargoKeys.reduce((s, k) => {
+    const def = RESOURCE_DEFS[k]; if (!def) return s;
+    const isBonus = tradePrices.bonus.includes(k);
+    return s + cargo[k] * Math.floor(def.value * mult * tradePrices.sell * (isBonus ? 1.5 : 1));
+  }, 0);
 
-  // Upgrade buttons
+  // Crafting section
+  const craftHtml = CRAFT_RECIPES.map((r, i) => {
+    const hasLevel = SpaceState.skills.crafting.level >= r.craftLevel;
+    const hasIng = Object.entries(r.ingredients).every(([k, q]) => (SpaceState.cargo[k]||0) >= q);
+    const canCraft = hasLevel && hasIng;
+    const ingText = Object.entries(r.ingredients).map(([k, q]) => `${RESOURCE_DEFS[k]?.name||k} ${SpaceState.cargo[k]||0}/${q}`).join(', ');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
+      <div><div style="font-size:11px;color:${canCraft?'#ddaa66':'#555'}">${r.name}</div><div style="font-size:9px;color:#444">${r.desc}</div></div>
+      <button onclick="craftItem(${i})" ${!canCraft?'disabled':''} style="background:${canCraft?'#2a2a1a':'#181818'};color:${canCraft?'#ddaa66':'#444'};border:1px solid ${canCraft?'#886622':'#222'};border-radius:3px;padding:2px 6px;cursor:${canCraft?'pointer':'default'};font-size:10px;">Craft</button>
+    </div>`;
+  }).join('');
+
+  return `
+    <div style="font-size:13px;color:#44cc88;margin-bottom:6px;">SELL CARGO</div>
+    ${sellHtml}
+    ${sellAllValue > 0 ? `<button onclick="sellAllCargo()" style="margin-top:6px;width:100%;background:#1a2a1a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:4px;cursor:pointer;font-size:11px;">Sell All (${sellAllValue}cr)</button>` : ''}
+    <div style="font-size:13px;color:#ddaa66;margin-top:10px;margin-bottom:6px;">CRAFTING</div>
+    ${craftHtml}`;
+}
+
+function _stationEquipTab() {
+  // Upgrades
   const engLevel = SpaceState.skills.engineering.level;
   const upgradeHtml = UPGRADES.map((up, i) => {
     const canAfford = SpaceState.player.credits >= up.cost;
     const hasLevel = engLevel >= up.engLevel;
     const disabled = !canAfford || !hasLevel;
-    const reason = !hasLevel ? `Eng LV${up.engLevel}` : !canAfford ? 'Need credits' : '';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #222;">
-      <div>
-        <div style="font-size:12px;color:#ccc;">${up.name}</div>
-        <div style="font-size:10px;color:#666;">+${up.amount} ${up.stat} ${reason ? '(' + reason + ')' : ''}</div>
-      </div>
-      <button onclick="buyUpgrade(${i})" ${disabled ? 'disabled' : ''} style="background:${disabled ? '#222' : '#2a2a3a'};color:${disabled ? '#555' : '#6699ff'};border:1px solid ${disabled ? '#333' : '#6699ff'};border-radius:4px;padding:2px 10px;cursor:${disabled ? 'default' : 'pointer'};font-size:11px;">${up.cost}cr</button>
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
+      <div><div style="font-size:11px;color:#ccc;">${up.name}</div><div style="font-size:9px;color:#555;">+${up.amount} ${up.stat} ${!hasLevel?'(Eng LV'+up.engLevel+')':''}</div></div>
+      <button onclick="buyUpgrade(${i})" ${disabled?'disabled':''} style="background:${disabled?'#181818':'#1a1a2a'};color:${disabled?'#444':'#6699ff'};border:1px solid ${disabled?'#222':'#6699ff'};border-radius:3px;padding:2px 6px;cursor:${disabled?'default':'pointer'};font-size:10px;">${up.cost}cr</button>
     </div>`;
   }).join('');
 
-  el.innerHTML = `
-    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);" onclick="hideStationScreen()"></div>
-    <div style="position:relative;background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:20px;min-width:400px;max-width:600px;color:#ddd;">
-      <h2 style="text-align:center;font-size:16px;color:#aabbcc;margin-bottom:12px;border-bottom:1px solid #2a2a3a;padding-bottom:8px;">OUTPOST ALPHA</h2>
-      <div style="display:flex;gap:20px;">
-        <div style="flex:1;">
-          <div style="font-size:13px;color:#44cc88;margin-bottom:6px;">TRADE</div>
-          ${sellHtml}
-          ${sellAllValue > 0 ? `<button onclick="sellAllCargo()" style="margin-top:8px;width:100%;background:#2a3a2a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:4px;cursor:pointer;font-size:12px;">Sell All (${sellAllValue}cr)</button>` : ''}
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:13px;color:#6699ff;margin-bottom:6px;">UPGRADES</div>
-          ${upgradeHtml}
-        </div>
-      </div>
-      <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
-        <div style="font-size:13px;color:#ff8844;margin-bottom:6px;">WEAPONS</div>
-        ${Object.entries(WEAPONS).map(([key, w]) => {
-          const equipped = SpaceState.player.weapon === key;
-          const canAfford = SpaceState.player.credits >= w.cost;
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #222;">
-            <div>
-              <span style="color:${equipped ? '#44ff44' : '#ccc'};font-size:12px;">${w.name}</span>
-              <span style="color:#666;font-size:10px;"> DMG:${w.damage} SPD:${Math.round(1000/w.fireRate)}/s</span>
-            </div>
-            ${equipped ? '<span style="color:#44ff44;font-size:11px;">Equipped</span>' :
-              w.cost === 0 ? `<button onclick="equipWeapon('${key}')" style="background:#2a2a3a;color:#aaa;border:1px solid #555;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">Equip</button>` :
-              `<button onclick="buyWeapon('${key}')" ${!canAfford?'disabled':''} style="background:${canAfford?'#3a2a1a':'#222'};color:${canAfford?'#ff8844':'#555'};border:1px solid ${canAfford?'#ff8844':'#333'};border-radius:4px;padding:2px 8px;cursor:${canAfford?'pointer':'default'};font-size:11px;">${w.cost}cr</button>`}
-          </div>`;
-        }).join('')}
-      </div>
-      <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
-        <div style="font-size:13px;color:#44ddcc;margin-bottom:6px;">SHIPYARD</div>
-        ${Object.entries(SHIPS).map(([key, s]) => {
-          const owned = SpaceState.player.ship === key;
-          const canAfford = SpaceState.player.credits >= s.cost;
-          const hasLevel = SpaceState.skills.piloting.level >= s.pilotReq;
-          const disabled = !canAfford || !hasLevel;
-          const spd = s.speedBonus >= 0 ? '+' + s.speedBonus : '' + s.speedBonus;
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #222;">
-            <div>
-              <span style="color:${owned ? '#44ff44' : '#ccc'};font-size:12px;">${s.name}</span>
-              <div style="font-size:10px;color:#666;">HP:${s.hp} SH:${s.shield} SPD:${spd} ${!hasLevel ? '(Pilot LV' + s.pilotReq + ')' : ''}</div>
-            </div>
-            ${owned ? '<span style="color:#44ff44;font-size:11px;">Current</span>' :
-              s.cost === 0 ? `<button onclick="switchShip('${key}')" style="background:#2a3a3a;color:#44ddcc;border:1px solid #44ddcc;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">Select</button>` :
-              `<button onclick="buyShip('${key}')" ${disabled?'disabled':''} style="background:${disabled?'#222':'#1a3a3a'};color:${disabled?'#555':'#44ddcc'};border:1px solid ${disabled?'#333':'#44ddcc'};border-radius:4px;padding:2px 8px;cursor:${disabled?'default':'pointer'};font-size:11px;">${s.cost}cr</button>`}
-          </div>`;
-        }).join('')}
-      </div>
-      <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px;">
-        <div style="font-size:13px;color:#ddaa66;margin-bottom:6px;">CRAFTING</div>
-        ${CRAFT_RECIPES.map((r, i) => {
-          const hasLevel = SpaceState.skills.crafting.level >= r.craftLevel;
-          const hasIngredients = Object.entries(r.ingredients).every(([k, qty]) => (SpaceState.cargo[k] || 0) >= qty);
-          const canCraft = hasLevel && hasIngredients;
-          const ingText = Object.entries(r.ingredients).map(([k, qty]) => {
-            const have = SpaceState.cargo[k] || 0;
-            return `<span style="color:${have >= qty ? '#888' : '#ff4444'}">${RESOURCE_DEFS[k]?.name || k} ${have}/${qty}</span>`;
-          }).join(', ');
-          return `<div style="padding:3px 0;border-bottom:1px solid #222;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:12px;color:${canCraft ? '#ddaa66' : '#666'};">${r.name}</span>
-              <button onclick="craftItem(${i})" ${!canCraft?'disabled':''} style="background:${canCraft?'#2a2a1a':'#222'};color:${canCraft?'#ddaa66':'#555'};border:1px solid ${canCraft?'#886622':'#333'};border-radius:4px;padding:2px 8px;cursor:${canCraft?'pointer':'default'};font-size:11px;">Craft</button>
-            </div>
-            <div style="font-size:10px;color:#555;">${r.desc} ${!hasLevel ? '(Craft LV' + r.craftLevel + ')' : ''}</div>
-            <div style="font-size:9px;color:#444;">${ingText}</div>
-          </div>`;
-        }).join('')}
-      </div>
-      <div style="text-align:center;color:#ddcc44;font-size:13px;margin-top:12px;">Credits: ${SpaceState.player.credits}</div>
-      <div style="text-align:center;color:#445;font-size:11px;margin-top:4px;">[ESC] to undock</div>
+  // Weapons
+  const weaponHtml = Object.entries(WEAPONS).map(([key, w]) => {
+    const eq = SpaceState.player.weapon === key;
+    const canAfford = SpaceState.player.credits >= w.cost;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
+      <div><span style="color:${eq?'#44ff44':'#ccc'};font-size:11px;">${w.name}</span> <span style="color:#555;font-size:9px;">DMG:${w.damage} SPD:${Math.round(1000/w.fireRate)}/s</span></div>
+      ${eq ? '<span style="color:#44ff44;font-size:10px;">Equipped</span>' :
+        w.cost===0 ? `<button onclick="equipWeapon('${key}')" style="background:#1a1a2a;color:#aaa;border:1px solid #555;border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;">Equip</button>` :
+        `<button onclick="buyWeapon('${key}')" ${!canAfford?'disabled':''} style="background:${canAfford?'#2a1a1a':'#181818'};color:${canAfford?'#ff8844':'#444'};border:1px solid ${canAfford?'#ff8844':'#222'};border-radius:3px;padding:2px 6px;cursor:${canAfford?'pointer':'default'};font-size:10px;">${w.cost}cr</button>`}
     </div>`;
+  }).join('');
+
+  // Ships
+  const shipHtml = Object.entries(SHIPS).map(([key, s]) => {
+    const owned = SpaceState.player.ship === key;
+    const canAfford = SpaceState.player.credits >= s.cost;
+    const hasLevel = SpaceState.skills.piloting.level >= s.pilotReq;
+    const disabled = !canAfford || !hasLevel;
+    const spd = s.speedBonus >= 0 ? '+'+s.speedBonus : ''+s.speedBonus;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
+      <div><span style="color:${owned?'#44ff44':'#ccc'};font-size:11px;">${s.name}</span><div style="font-size:9px;color:#555;">HP:${s.hp} SH:${s.shield} SPD:${spd} ${s.drones?'Drones:'+s.drones:''} ${!hasLevel?'(Pilot LV'+s.pilotReq+')':''}</div></div>
+      ${owned ? '<span style="color:#44ff44;font-size:10px;">Current</span>' :
+        s.cost===0 ? `<button onclick="switchShip('${key}')" style="background:#1a2a2a;color:#44ddcc;border:1px solid #44ddcc;border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;">Select</button>` :
+        `<button onclick="buyShip('${key}')" ${disabled?'disabled':''} style="background:${disabled?'#181818':'#1a2a2a'};color:${disabled?'#444':'#44ddcc'};border:1px solid ${disabled?'#222':'#44ddcc'};border-radius:3px;padding:2px 6px;cursor:${disabled?'default':'pointer'};font-size:10px;">${s.cost}cr</button>`}
+    </div>`;
+  }).join('');
+
+  return `
+    <div style="font-size:13px;color:#6699ff;margin-bottom:6px;">UPGRADES</div>${upgradeHtml}
+    <div style="font-size:13px;color:#ff8844;margin-top:10px;margin-bottom:6px;">WEAPONS</div>${weaponHtml}
+    <div style="font-size:13px;color:#44ddcc;margin-top:10px;margin-bottom:6px;">SHIPYARD</div>${shipHtml}`;
+}
+
+function _stationMissionsTab() {
+  const sys = SpaceState.currentSystem;
+  const available = MISSIONS.filter(m => m.system === sys && !SpaceState.completedMissions.includes(m.id));
+  const active = SpaceState.activeMission;
+
+  let html = '';
+  if (active) {
+    const mission = MISSIONS.find(m => m.id === active.id);
+    if (mission) {
+      html += `<div style="background:#1a1a2a;border:1px solid #445;border-radius:6px;padding:8px;margin-bottom:10px;">
+        <div style="font-size:13px;color:#ffcc44;">ACTIVE: ${mission.name}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:4px;">${mission.desc}</div>
+        <div style="font-size:11px;color:#888;margin-top:4px;">Progress: ${active.progress || 0}/${mission.goal.count || mission.goal.amount}</div>
+        <div style="font-size:11px;color:#44cc44;margin-top:2px;">Reward: ${mission.reward.credits}cr</div>
+        ${(active.progress || 0) >= (mission.goal.count || mission.goal.amount) ?
+          `<button onclick="completeMission()" style="margin-top:6px;width:100%;background:#1a2a1a;color:#44ff44;border:1px solid #44ff44;border-radius:4px;padding:4px;cursor:pointer;font-size:12px;">Complete Mission</button>` :
+          `<button onclick="abandonMission()" style="margin-top:6px;width:100%;background:#2a1a1a;color:#aa4444;border:1px solid #aa4444;border-radius:4px;padding:3px;cursor:pointer;font-size:10px;">Abandon</button>`}
+      </div>`;
+    }
+  }
+
+  if (available.length === 0 && !active) {
+    html += '<div style="color:#666;font-size:12px;text-align:center;padding:20px;">No missions available in this system.</div>';
+  } else if (!active) {
+    html += available.map(m => {
+      return `<div style="padding:6px 0;border-bottom:1px solid #1a1a22;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;color:#aabbcc;">${m.name}</span>
+          <button onclick="acceptMission('${m.id}')" style="background:#1a1a2a;color:#6699ff;border:1px solid #6699ff;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:10px;">Accept</button>
+        </div>
+        <div style="font-size:10px;color:#888;margin-top:2px;">${m.desc}</div>
+        <div style="font-size:10px;color:#44cc44;margin-top:2px;">Reward: ${m.reward.credits}cr</div>
+      </div>`;
+    }).join('');
+  }
+
+  return html;
+}
+
+function _stationNPCsTab() {
+  const npcs = STATION_NPCS[SpaceState.currentSystem] || [];
+  if (npcs.length === 0) return '<div style="color:#666;font-size:12px;text-align:center;padding:20px;">No one here to talk to.</div>';
+
+  return npcs.map(npc => `
+    <div style="padding:8px 0;border-bottom:1px solid #1a1a22;">
+      <div style="font-size:13px;color:#aabbcc;font-weight:600;">${npc.name}</div>
+      <div style="font-size:10px;color:#556;margin-bottom:4px;">${npc.role}</div>
+      ${npc.dialog.map(line => `<div style="font-size:11px;color:#999;margin:3px 0;padding-left:8px;border-left:2px solid #333;">"${line}"</div>`).join('')}
+    </div>
+  `).join('');
 }
 
 function sellCargo(key) {
   const def = RESOURCE_DEFS[key];
   if (!def || !SpaceState.cargo[key]) return;
-  const sellPrice = Math.floor(def.value * SpaceState.getSellMultiplier());
+  const sys = SpaceState.currentSystem;
+  const tp = TRADE_PRICES[sys] || TRADE_PRICES['sol'];
+  const isBonus = tp.bonus.includes(key);
+  const sellPrice = Math.floor(def.value * SpaceState.getSellMultiplier() * tp.sell * (isBonus ? 1.5 : 1));
   SpaceState.player.credits += sellPrice;
   SpaceState.cargo[key]--;
   if (SpaceState.cargo[key] <= 0) delete SpaceState.cargo[key];
@@ -394,6 +460,17 @@ function sellCargo(key) {
   SpaceState.skills.reputation.totalExp += 2;
   SpaceState.checkSkillUp('trading');
   SpaceState.checkSkillUp('reputation');
+
+  // Mission tracking (deliver + sell types)
+  if (SpaceState.activeMission) {
+    const m = MISSIONS.find(mi => mi.id === SpaceState.activeMission.id);
+    if (m && m.goal.type === 'deliver' && m.goal.resource === key) {
+      SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + 1;
+    }
+    if (m && m.goal.type === 'sell') {
+      SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + sellPrice;
+    }
+  }
 
   _renderStation();
 }
@@ -435,6 +512,33 @@ function buyUpgrade(idx) {
   if (up.stat === 'maxHp') SpaceState.player.hp = SpaceState.player.maxHp;
   if (up.stat === 'maxShield') SpaceState.player.shield = SpaceState.player.maxShield;
 
+  _renderStation();
+}
+
+function acceptMission(id) {
+  if (SpaceState.activeMission) return;
+  const mission = MISSIONS.find(m => m.id === id);
+  if (!mission) return;
+  SpaceState.activeMission = { id, progress: 0 };
+  SpaceState.killCount = 0;
+  SpaceState.totalSoldValue = 0;
+  _renderStation();
+}
+
+function completeMission() {
+  if (!SpaceState.activeMission) return;
+  const mission = MISSIONS.find(m => m.id === SpaceState.activeMission.id);
+  if (!mission) return;
+  SpaceState.player.credits += mission.reward.credits;
+  SpaceState.skills.reputation.totalExp += 20;
+  SpaceState.checkSkillUp('reputation');
+  SpaceState.completedMissions.push(mission.id);
+  SpaceState.activeMission = null;
+  _renderStation();
+}
+
+function abandonMission() {
+  SpaceState.activeMission = null;
   _renderStation();
 }
 
@@ -595,6 +699,70 @@ function showGameOverScreen(onRestart) {
     }
   };
   document.addEventListener('keydown', handler);
+}
+
+// ── Settlement Screen (DOM) ──────────────────────────────────────────────────
+let _settlementOpen = false;
+
+function showSettlementScreen(settlement, planetName) {
+  if (_settlementOpen) return;
+  _settlementOpen = true;
+
+  const el = document.createElement('div');
+  el.id = 'settlement-screen';
+  el.style.cssText = 'position:absolute;inset:0;z-index:300;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
+
+  const npcHtml = settlement.npcs.map(npc => `
+    <div style="padding:6px 0;border-bottom:1px solid #1a1a22;">
+      <div style="font-size:13px;color:#aabbcc;font-weight:600;">${npc.name}</div>
+      ${npc.dialog.map(line => `<div style="font-size:11px;color:#999;margin:2px 0;padding-left:8px;border-left:2px solid #333;">"${line}"</div>`).join('')}
+    </div>
+  `).join('');
+
+  const shopHtml = (settlement.shop || []).map(si => {
+    const def = RESOURCE_DEFS[si.resource];
+    if (!def) return '';
+    const canAfford = SpaceState.player.credits >= si.price;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
+      <span style="color:${def.color};font-size:12px;">${def.name}</span>
+      <button onclick="buySettlementItem('${si.resource}',${si.price})" ${!canAfford?'disabled':''} style="background:${canAfford?'#1a2a1a':'#181818'};color:${canAfford?'#44cc44':'#444'};border:1px solid ${canAfford?'#44cc44':'#222'};border-radius:3px;padding:2px 8px;cursor:${canAfford?'pointer':'default'};font-size:11px;">${si.price}cr</button>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);" onclick="hideSettlementScreen()"></div>
+    <div style="position:relative;background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:20px;min-width:350px;max-width:500px;max-height:80vh;overflow-y:auto;color:#ddd;" onclick="event.stopPropagation()">
+      <h2 style="text-align:center;font-size:15px;color:#aabbcc;margin-bottom:10px;border-bottom:1px solid #2a2a3a;padding-bottom:6px;">${settlement.name}</h2>
+      <div style="font-size:10px;color:#556;margin-bottom:8px;text-align:center;">${planetName}</div>
+      <div style="font-size:13px;color:#aabbcc;margin-bottom:6px;">PEOPLE</div>
+      ${npcHtml}
+      ${shopHtml ? `<div style="font-size:13px;color:#44cc88;margin-top:10px;margin-bottom:6px;">BUY RESOURCES</div>${shopHtml}` : ''}
+      <div style="text-align:center;color:#ddcc44;font-size:12px;margin-top:10px;">Credits: ${SpaceState.player.credits}</div>
+      <div style="text-align:center;color:#445;font-size:11px;margin-top:4px;">[ESC] or click outside to leave</div>
+    </div>`;
+
+  document.getElementById('hud-overlay').appendChild(el);
+  const handler = (e) => { if (e.key === 'Escape') { hideSettlementScreen(); document.removeEventListener('keydown', handler); } };
+  document.addEventListener('keydown', handler);
+}
+
+function buySettlementItem(resource, price) {
+  if (SpaceState.player.credits < price) return;
+  SpaceState.player.credits -= price;
+  SpaceState.addCargo(resource, 1);
+  // Re-render
+  hideSettlementScreen();
+  const settlement = PLANET_SETTLEMENTS[Object.keys(PLANET_SETTLEMENTS).find(k => {
+    const s = PLANET_SETTLEMENTS[k];
+    return s.shop && s.shop.some(si => si.resource === resource && si.price === price);
+  })];
+  if (settlement) showSettlementScreen(settlement, '');
+}
+
+function hideSettlementScreen() {
+  _settlementOpen = false;
+  const el = document.getElementById('settlement-screen');
+  if (el) el.remove();
 }
 
 // ── World prompt helpers (DOM) ───────────────────────────────────────────────

@@ -517,6 +517,17 @@ class FlightScene extends Phaser.Scene {
       this._domFloat(enemy.x, enemy.y, '+10 cr', '#ddcc44');
       if (g > 0) this._domFloat(enemy.x, enemy.y - 20, `Combat LV${SpaceState.skills.combat.level}!`, '#ffee44');
 
+      // Mission kill tracking
+      if (SpaceState.activeMission) {
+        const m = MISSIONS.find(mi => mi.id === SpaceState.activeMission.id);
+        if (m && m.goal.type === 'kill') {
+          SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + 1;
+          if (SpaceState.activeMission.progress >= m.goal.count) {
+            this._domFloat(this.player.x, this.player.y - 40, 'Mission complete! Return to station.', '#ffcc44', 2000);
+          }
+        }
+      }
+
       const sx = enemy.getData('spawnX'), sy = enemy.getData('spawnY'), type = enemy.getData('type');
       this.tweens.add({
         targets: enemy, alpha: 0, scale: 0.1, duration: 200,

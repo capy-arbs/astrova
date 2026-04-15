@@ -172,6 +172,10 @@ const SpaceState = {
   items: {},  // crafted consumables: key → qty
   discoveredPlanets: [],
   activeBuff: null, // { effect, amount, duration, timer }
+  activeMission: null,  // { id, progress }
+  completedMissions: [],
+  totalSoldValue: 0,    // tracks sell amount for sell-type missions
+  killCount: 0,         // tracks kills for kill-type missions
 
   checkSkillUp(skillName) {
     const skill = this.skills[skillName];
@@ -371,6 +375,149 @@ const SPACE_OBJECTS = {
     { type: 'derelict',  x: 2200, y: 600,  name: 'Ancient Vessel',      loot: { 'ancient-relic': 5, 'thermal-core': 3 } },
     { type: 'asteroids', x: 1800, y: 2600, name: 'Crystal Fields',      loot: { 'dust-crystal': 6, 'ice-crystal': 4 } },
   ],
+};
+
+// ── Station NPCs & dialog ────────────────────────────────────────────────────
+const STATION_NPCS = {
+  'sol': [
+    { name: 'Commander Reyes', role: 'Station Commander',
+      dialog: [
+        "Welcome to Outpost Alpha, pilot.",
+        "We're the last line of defense in the Sol system.",
+        "The Kla'ed have been pushing further into our territory.",
+        "If you're looking for work, check the mission board.",
+      ]},
+    { name: 'Dr. Kira Patel', role: 'Scientist',
+      dialog: [
+        "Fascinating... the readings from the outer planets are anomalous.",
+        "If you find any Ancient Relics, bring them to me.",
+        "They may hold the key to understanding the Kla'ed incursion.",
+      ]},
+    { name: 'Jax', role: 'Mechanic',
+      dialog: [
+        "Need your ship patched up? You've come to the right place.",
+        "I've seen every kind of damage the Kla'ed can dish out.",
+        "Upgrade your hull plating — trust me, you'll thank me later.",
+      ]},
+  ],
+  'alpha-centauri': [
+    { name: 'Admiral Zhao', role: 'Fleet Commander',
+      dialog: [
+        "Alpha Centauri is contested space. Watch yourself out there.",
+        "We've lost contact with several outposts in the Kepler Expanse.",
+        "Any intel you can bring back would be invaluable.",
+      ]},
+    { name: 'Zara Okafor', role: 'Trader',
+      dialog: [
+        "The markets here pay premium for Thermal Cores.",
+        "If you can make it to Kepler and back, there's profit to be made.",
+        "Cryo Compounds from the ice worlds sell well in Sol.",
+      ]},
+  ],
+  'kepler': [
+    { name: 'Ghost', role: 'Mysterious Figure',
+      dialog: [
+        "You made it this far? Impressive.",
+        "The Kla'ed don't want us here. Something in these ruins...",
+        "The Ancient Relics... they're not just artifacts. They're warnings.",
+        "Be careful what you uncover, pilot.",
+      ]},
+    { name: 'Ren Takahashi', role: 'Salvage Expert',
+      dialog: [
+        "Kepler is a goldmine for salvage — if you survive long enough.",
+        "The wrecks out here are ancient. Pre-war, maybe older.",
+        "Bring me Obsidian Shards and I'll make it worth your while.",
+      ]},
+  ],
+};
+
+// ── Trade prices per system (multipliers — buy/sell differently per system) ──
+const TRADE_PRICES = {
+  'sol':             { buy: 1.0,  sell: 1.0,  bonus: ['plant-fiber', 'water-sample'] },
+  'alpha-centauri':  { buy: 1.1,  sell: 1.2,  bonus: ['ice-crystal', 'cryo-compound', 'thermal-core'] },
+  'kepler':          { buy: 1.3,  sell: 1.5,  bonus: ['ancient-relic', 'obsidian-shard', 'magma-ore'] },
+};
+
+// ── Mission board ────────────────────────────────────────────────────────────
+const MISSIONS = [
+  { id: 'm1', name: 'Patrol Duty',       system: 'sol',
+    desc: 'Destroy 5 hostiles in Sol system.',
+    goal: { type: 'kill', count: 5 }, reward: { credits: 80 }, minCombat: 1 },
+  { id: 'm2', name: 'Resource Run',      system: 'sol',
+    desc: 'Deliver 5 Plant Fiber to the station.',
+    goal: { type: 'deliver', resource: 'plant-fiber', count: 5 }, reward: { credits: 60 }, minTrading: 1 },
+  { id: 'm3', name: 'Ice Harvest',       system: 'alpha-centauri',
+    desc: 'Collect 3 Ice Crystals from Frostheim or Cryo-9.',
+    goal: { type: 'deliver', resource: 'ice-crystal', count: 3 }, reward: { credits: 120 }, minMining: 5 },
+  { id: 'm4', name: 'Deep Space Patrol',  system: 'alpha-centauri',
+    desc: 'Eliminate 8 hostiles in Alpha Centauri.',
+    goal: { type: 'kill', count: 8 }, reward: { credits: 150 }, minCombat: 5 },
+  { id: 'm5', name: 'Relic Recovery',    system: 'kepler',
+    desc: 'Recover 2 Ancient Relics from Kepler planets.',
+    goal: { type: 'deliver', resource: 'ancient-relic', count: 2 }, reward: { credits: 300 }, minExploration: 10 },
+  { id: 'm6', name: 'Kepler Cleansing',  system: 'kepler',
+    desc: 'Destroy 12 hostiles in the Kepler Expanse.',
+    goal: { type: 'kill', count: 12 }, reward: { credits: 400 }, minCombat: 10 },
+  { id: 'm7', name: 'Trade Route',       system: 'sol',
+    desc: 'Sell 200 credits worth of cargo at any station.',
+    goal: { type: 'sell', amount: 200 }, reward: { credits: 100 }, minTrading: 3 },
+  { id: 'm8', name: 'Thermal Extraction', system: 'kepler',
+    desc: 'Deliver 3 Thermal Cores.',
+    goal: { type: 'deliver', resource: 'thermal-core', count: 3 }, reward: { credits: 250 }, minMining: 10 },
+];
+
+// ── Planet settlement data ───────────────────────────────────────────────────
+const PLANET_SETTLEMENTS = {
+  'Terra Nova': {
+    hasSettlement: true,
+    name: 'New Hope Colony',
+    npcs: [
+      { name: 'Mayor Chen', dialog: [
+        "Welcome to New Hope, the first human colony outside Earth.",
+        "We're always in need of supplies. Water Samples and Bio Matter especially.",
+        "If you find any, the colony will pay well.",
+      ]},
+      { name: 'Farmer Eli', dialog: [
+        "Growing food in alien soil isn't easy, but we manage.",
+        "The plant life here is remarkable — so much to study.",
+      ]},
+    ],
+    shop: [
+      { resource: 'plant-fiber', price: 3 },
+      { resource: 'water-sample', price: 5 },
+      { resource: 'bio-matter', price: 8 },
+    ],
+  },
+  'Glacius': {
+    hasSettlement: true,
+    name: 'Cryo Station Omega',
+    npcs: [
+      { name: 'Dr. Frost', dialog: [
+        "The ice here contains compounds we've never seen before.",
+        "Cryo Compounds could revolutionize our shield technology.",
+        "Be careful on the surface — temperatures drop fast.",
+      ]},
+    ],
+    shop: [
+      { resource: 'ice-crystal', price: 8 },
+      { resource: 'cryo-compound', price: 14 },
+    ],
+  },
+  'Haven': {
+    hasSettlement: true,
+    name: 'Free Port Haven',
+    npcs: [
+      { name: 'Smuggler Quinn', dialog: [
+        "You didn't see me here, and I didn't see you.",
+        "I deal in... hard to find items. Relics, cores, the good stuff.",
+        "Everything's got a price in Haven.",
+      ]},
+    ],
+    shop: [
+      { resource: 'ancient-relic', price: 35 },
+      { resource: 'thermal-core', price: 25 },
+    ],
+  },
 };
 
 // ── Ship upgrade definitions ─────────────────────────────────────────────────

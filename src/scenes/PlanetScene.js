@@ -59,6 +59,19 @@ class PlanetScene extends Phaser.Scene {
 
     this.shipPromptVisible = false;
 
+    // ── Settlement ──────────────────────────────────────────────────
+    this.settlement = PLANET_SETTLEMENTS[this.planetInfo.name] || null;
+    if (this.settlement) {
+      const sx = 200, sy = 200;
+      const gfx2 = this.add.graphics();
+      gfx2.fillStyle(0x555566); gfx2.fillRect(sx - 25, sy - 20, 50, 40);
+      gfx2.fillStyle(0x666677); gfx2.fillRect(sx - 15, sy - 25, 30, 10);
+      gfx2.fillStyle(0x88aa88); gfx2.fillCircle(sx, sy - 30, 4);
+      this.settlementX = sx;
+      this.settlementY = sy;
+      this.settlementPromptVisible = false;
+    }
+
     // ── Player (astronaut) ─────────────────────────────────────────
     this.player = this.physics.add.sprite(PLANET_SIZE / 2, PLANET_SIZE / 2 + 40, 'astronaut', 0);
     this.player.setScale(0.5);
@@ -180,6 +193,25 @@ class PlanetScene extends Phaser.Scene {
     } else if (this.shipPromptVisible) {
       hideWorldPrompt('ship-return');
       this.shipPromptVisible = false;
+    }
+
+    // ── Settlement interaction ────────────────────────────────────────
+    if (this.settlement) {
+      const sDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.settlementX, this.settlementY);
+      if (sDist < 35) {
+        if (!this.settlementPromptVisible) {
+          showWorldPrompt('settlement', this.settlementX, this.settlementY - 30, `[E] Enter ${this.settlement.name}`);
+          this.settlementPromptVisible = true;
+        }
+        const ePressedS = Phaser.Input.Keyboard.JustDown(this.eKey) || (touchState.action && !this._lastTouchAction2);
+        this._lastTouchAction2 = touchState.action;
+        if (ePressedS) {
+          showSettlementScreen(this.settlement, this.planetInfo.name);
+        }
+      } else if (this.settlementPromptVisible) {
+        hideWorldPrompt('settlement');
+        this.settlementPromptVisible = false;
+      }
     }
   }
 
