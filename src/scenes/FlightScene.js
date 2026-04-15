@@ -704,7 +704,6 @@ class FlightScene extends Phaser.Scene {
         this.droneActionTimer -= delta;
         if (this.droneActionTimer <= 0) {
           if (this.droneActionState === 'deploying') {
-            // Deploy drones from bay
             const deployLimit = SpaceState.getDroneDeployLimit();
             const toDeploy = Math.min(deployLimit, SpaceState.dronesInBay);
             SpaceState.dronesInBay -= toDeploy;
@@ -714,15 +713,28 @@ class FlightScene extends Phaser.Scene {
             this.dronesDeployed = true;
             this._domFloat(this.player.x, this.player.y - 30, `${toDeploy} drones deployed!`, '#44ff44');
           } else if (this.droneActionState === 'recalling') {
-            // Recall surviving drones back to bay
             const recovered = this.drones.length;
             SpaceState.dronesInBay += recovered;
-            this.drones.forEach(d => d.destroy());
+            this.drones.forEach(d => { if (d && d.active) d.destroy(); });
             this.drones = [];
             this.dronesDeployed = false;
             this._domFloat(this.player.x, this.player.y - 30, `${recovered} drones recovered`, '#88ccff');
           }
           this.droneActionState = 'idle';
+        }
+      }
+
+      // Auto-replace lost drones from bay while deployed (no recall needed)
+      if (this.dronesDeployed && this.droneActionState === 'idle') {
+        const deployLimit = SpaceState.getDroneDeployLimit();
+        if (SpaceState.dronesInBay > 0 && this.drones.length < deployLimit) {
+          this.droneReplaceTimer += delta;
+          if (this.droneReplaceTimer >= 5000) {
+            this.droneReplaceTimer = 0;
+            SpaceState.dronesInBay--;
+            this._spawnDrone(this.drones.length, deployLimit);
+            this._domFloat(this.player.x, this.player.y - 30, `Replacement drone launched (${SpaceState.dronesInBay} in bay)`, '#88ccff');
+          }
         }
       }
     }
