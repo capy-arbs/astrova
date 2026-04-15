@@ -434,11 +434,15 @@ const SpaceState = {
     this.wanted = false;
     this.wantedTimer = 0;
 
-    // Death penalty: lose 10% of all skill XP
+    // Death penalty: reset each skill's XP to the start of its current level
+    // You keep your level but lose all progress toward the next one
     for (const key of Object.keys(this.skills)) {
       const skill = this.skills[key];
-      skill.totalExp = Math.floor(skill.totalExp * 0.9);
-      skill.level = Math.min(MAX_LEVEL, xpToLevel(skill.totalExp));
+      if (skill.level > 1) {
+        skill.totalExp = XP_TABLE[skill.level - 1]; // floor of current level
+      } else {
+        skill.totalExp = 0;
+      }
     }
     // Keep: credits, discoveredPlanets, completedMissions
   },
