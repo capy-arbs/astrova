@@ -182,6 +182,7 @@ class FlightScene extends Phaser.Scene {
 
     // ── Bullets ──────────────────────────────────────────────────────
     this.bullets = this.physics.add.group({ maxSize: 30 });
+    this.enemyBullets = this.physics.add.group({ maxSize: 40 });
     this.lastFired = 0;
 
     // ── Enemies ──────────────────────────────────────────────────────
@@ -201,6 +202,7 @@ class FlightScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.enemies, this._enemyHitPlayer, null, this);
     this.physics.add.overlap(this.bullets, this.police, this._bulletHitPolice, null, this);
     this.physics.add.overlap(this.player, this.police, this._policeContactPlayer, null, this);
+    this.physics.add.overlap(this.enemyBullets, this.player, this._enemyBulletHitPlayer, null, this);
 
     // ── Input ────────────────────────────────────────────────────────
     this.cursors  = this.input.keyboard.createCursorKeys();
@@ -369,9 +371,30 @@ class FlightScene extends Phaser.Scene {
         const spd = e.getData('speed') || 60;
         e.setVelocity(Math.cos(angle) * spd, Math.sin(angle) * spd);
         e.setAngle(Phaser.Math.RadToDeg(angle) + 90);
+
+        // Enemy shoots at player
+        const fireTimer = (e.getData('fireTimer') || 0) + delta;
+        const fireRate = 1500 + Phaser.Math.Between(0, 1000); // stagger shots
+        if (fireTimer >= fireRate && dist < 250 && dist > 30) {
+          e.setData('fireTimer', 0);
+          const b = this.enemyBullets.create(e.x, e.y, 'bullet-auto', 0);
+          if (b) {
+            b.setVelocity(Math.cos(angle) * 200, Math.sin(angle) * 200);
+            b.setAngle(Phaser.Math.RadToDeg(angle) + 90);
+            b.setDepth(4).setScale(0.5).setTint(0xff4444);
+            b.setData('damage', (e.getData('layer') || 1) * 5);
+          }
+        } else {
+          e.setData('fireTimer', fireTimer);
+        }
       } else {
         e.setVelocity(e.body.velocity.x * 0.98, e.body.velocity.y * 0.98);
       }
+    });
+
+    // Clean up enemy bullets
+    this.enemyBullets.children.each(b => {
+      if (b.active && Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) > 500) b.destroy();
     });
 
     // ── Planet proximity ─────────────────────────────────────────────
@@ -589,6 +612,21 @@ class FlightScene extends Phaser.Scene {
           const angle = Phaser.Math.Angle.Between(p.x, p.y, this.player.x, this.player.y);
           p.setVelocity(Math.cos(angle) * 85, Math.sin(angle) * 85);
           p.setAngle(Phaser.Math.RadToDeg(angle) + 90);
+
+          // Police shoot at player
+          const pft = (p.getData('fireTimer') || 0) + delta;
+          if (pft >= 1200 && dist < 200 && dist > 30) {
+            p.setData('fireTimer', 0);
+            const b = this.enemyBullets.create(p.x, p.y, 'bullet-auto', 0);
+            if (b) {
+              b.setVelocity(Math.cos(angle) * 250, Math.sin(angle) * 250);
+              b.setAngle(Phaser.Math.RadToDeg(angle) + 90);
+              b.setDepth(4).setScale(0.5).setTint(0x4488ff);
+              b.setData('damage', 8);
+            }
+          } else {
+            p.setData('fireTimer', pft);
+          }
         } else {
           p.setVelocity(p.body.velocity.x * 0.98, p.body.velocity.y * 0.98);
         }
@@ -878,6 +916,32 @@ class FlightScene extends Phaser.Scene {
     if (p.hp <= 0) this._gameOver();
   }
 
+  _enemyBulletHitPlayer(player, bullet) {
+    if (this.isInvincible) { bullet.destroy(); return; }
+    bullet.destroy();
+    this.lastHitTime = this.time.now;
+
+    const dmg = bullet.getData('damage') || 5;
+    const p = SpaceState.player;
+    if (p.shield > 0) {
+      p.shield = Math.max(0, p.shield - dmg);
+      this._domFloat(player.x, player.y, `-${dmg} shield`, '#6699ff');
+      SpaceState.skills.shields.totalExp += 3;
+      SpaceState.checkSkillUp('shields');
+    } else {
+      p.hp = Math.max(0, p.hp - dmg);
+      this._domFloat(player.x, player.y, `-${dmg} hull`, '#ff4444');
+      SpaceState.skills.hullIntegrity.totalExp += 4;
+      SpaceState.checkSkillUp('hullIntegrity');
+    }
+
+    // Brief flash but no full invincibility from bullets
+    player.setTint(0xff4444);
+    this.time.delayedCall(100, () => { if (player.active) player.clearTint(); });
+
+    if (p.hp <= 0) this._gameOver();
+  }
+
   _gameOver() {
     this.scene.pause();
     showGameOverScreen(() => {
@@ -907,22 +971,31 @@ class FlightScene extends Phaser.Scene {
       });
 
       if (nearestEnemy) {
-        // Attack mode — fly toward enemy
         drone.setData('state', 'attack');
         const angle = Phaser.Math.Angle.Between(drone.x, drone.y, nearestEnemy.x, nearestEnemy.y);
-        const speed = 130;
-        drone.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+        const distToEnemy = Phaser.Math.Distance.Between(drone.x, drone.y, nearestEnemy.x, nearestEnemy.y);
         drone.setAngle(Phaser.Math.RadToDeg(angle) + 90);
 
-        // Drone shoots at enemy
+        // Keep distance — orbit at ~80px, don't ram into enemies
+        if (distToEnemy > 100) {
+          drone.setVelocity(Math.cos(angle) * 130, Math.sin(angle) * 130);
+        } else if (distToEnemy < 50) {
+          // Too close — back off
+          drone.setVelocity(Math.cos(angle) * -60, Math.sin(angle) * -60);
+        } else {
+          // Orbit at range
+          const orbitAngle = angle + Math.PI / 2;
+          drone.setVelocity(Math.cos(orbitAngle) * 70, Math.sin(orbitAngle) * 70);
+        }
+
+        // Drone shoots at enemy from range
         let ft = drone.getData('fireTimer') + delta;
-        if (ft >= 600) { // fire every 600ms
+        if (ft >= 500) {
           ft = 0;
-          const dist = Phaser.Math.Distance.Between(drone.x, drone.y, nearestEnemy.x, nearestEnemy.y);
-          if (dist < 120) {
+          if (distToEnemy < 180) {
             const bullet = this.bullets.create(drone.x, drone.y, 'bullet-auto', 0);
             if (bullet) {
-              bullet.setVelocity(Math.cos(angle) * 350, Math.sin(angle) * 350);
+              bullet.setVelocity(Math.cos(angle) * 300, Math.sin(angle) * 300);
               bullet.setAngle(Phaser.Math.RadToDeg(angle) + 90);
               bullet.setDepth(8).setScale(0.5).setTint(0x88ccff);
             }
