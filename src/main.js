@@ -218,6 +218,10 @@ function showCargoScreen() {
         </div>
       </div>
       <div style="text-align:center;color:#445;font-size:12px;margin-top:12px;">[I] to close &nbsp; Credits: ${SpaceState.player.credits}</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;">
+        <button onclick="manualSave()" style="background:#1a2a1a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:11px;">Save Game</button>
+        <button onclick="confirmReset()" style="background:#2a1a1a;color:#aa4444;border:1px solid #aa4444;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:11px;">Reset Save</button>
+      </div>
     </div>`;
 
   document.getElementById('hud-overlay').appendChild(el);
@@ -230,6 +234,44 @@ function showCargoScreen() {
     }
   };
   document.addEventListener('keydown', closeHandler);
+}
+
+function manualSave() {
+  SpaceState.save();
+  // Brief flash on the save button
+  const el = document.getElementById('cargo-screen');
+  if (el) {
+    const btn = el.querySelector('button');
+    if (btn) { btn.textContent = 'Saved!'; setTimeout(() => { btn.textContent = 'Save Game'; }, 1000); }
+  }
+}
+
+function confirmReset() {
+  // Show confirmation dialog
+  const el = document.createElement('div');
+  el.id = 'reset-confirm';
+  el.style.cssText = 'position:absolute;inset:0;z-index:500;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
+  el.innerHTML = `
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.8);"></div>
+    <div style="position:relative;background:#1a1010;border:2px solid #aa4444;border-radius:10px;padding:24px;text-align:center;color:#ddd;max-width:350px;">
+      <div style="font-size:16px;font-weight:700;color:#ff4444;margin-bottom:10px;">Reset All Progress?</div>
+      <div style="font-size:12px;color:#999;margin-bottom:16px;">This will delete your save and start a new game. All skills, credits, ships, and quest progress will be lost.</div>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button onclick="doReset()" style="background:#2a1a1a;color:#ff4444;border:1px solid #ff4444;border-radius:4px;padding:6px 20px;cursor:pointer;font-size:13px;font-weight:700;">Yes, Reset</button>
+        <button onclick="cancelReset()" style="background:#1a1a2a;color:#aaa;border:1px solid #555;border-radius:4px;padding:6px 20px;cursor:pointer;font-size:13px;">Cancel</button>
+      </div>
+    </div>`;
+  document.getElementById('hud-overlay').appendChild(el);
+}
+
+function doReset() {
+  SpaceState.clearSave();
+  location.reload();
+}
+
+function cancelReset() {
+  const el = document.getElementById('reset-confirm');
+  if (el) el.remove();
 }
 
 function hideCargoScreen() {
