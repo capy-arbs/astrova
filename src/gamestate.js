@@ -160,7 +160,32 @@ const SHIPS = {
   'starter': {
     name: 'Starter Ship',    spriteKey: 'ship-starter',   size: 48,
     hp: 100, shield: 50, speedBonus: 0, cost: 0, pilotReq: 1,
+    cargo: 25, role: 'combat',
     path: _VM + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Full health.png',
+  },
+  'starter-explorer': {
+    name: 'Scout Pod',       spriteKey: 'ship-starter-explorer', size: 64,
+    hp: 60, shield: 30, speedBonus: 25, cost: 0, pilotReq: 1,
+    cargo: 20, role: 'exploration',
+    path: _F3 + 'Nautolan Ship - Scout - Base.png',
+  },
+  'starter-miner': {
+    name: 'Prospector',      spriteKey: 'ship-starter-miner', size: 64,
+    hp: 120, shield: 40, speedBonus: -10, cost: 0, pilotReq: 1,
+    cargo: 35, miningBonus: 1, role: 'mining',
+    path: _F3 + 'Nautolan Ship - Bomber - Base.png',
+  },
+  'starter-trader': {
+    name: 'Merchant Shuttle', spriteKey: 'ship-starter-trader', size: 64,
+    hp: 80, shield: 60, speedBonus: 0, cost: 0, pilotReq: 1,
+    cargo: 40, tradeBonus: 0.05, role: 'trading',
+    path: _F2 + 'Nairan - Support Ship - Base.png',
+  },
+  'starter-smuggler': {
+    name: 'Shadow Runner',   spriteKey: 'ship-starter-smuggler', size: 64,
+    hp: 70, shield: 35, speedBonus: 15, cost: 0, pilotReq: 1,
+    cargo: 15, scanRange: 45, role: 'smuggling',
+    path: _F2 + 'Nairan - Torpedo Ship - Base.png',
   },
   'nairan-scout': {
     name: 'Nairan Scout',    spriteKey: 'ship-nairan-scout', size: 64,
