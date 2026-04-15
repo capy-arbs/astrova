@@ -200,7 +200,7 @@ function showCargoScreen() {
     { name: 'Crafting',      key: 'crafting',      color: '#ddaa66' },
     { name: 'Exploration',   key: 'exploration',   color: '#ddaa44', cat: 'EXPLORE' },
     { name: 'Scanning',      key: 'scanning',      color: '#66ddaa' },
-    { name: 'Reputation',    key: 'reputation',    color: '#ffcc44' },
+    { name: 'Charisma',      key: 'charisma',       color: '#ffcc44' },
   ];
 
   const skillHtml = skillList.map(sk => {
@@ -595,9 +595,9 @@ function sellCargo(key) {
 
   // Trading + Reputation XP
   SpaceState.skills.trading.totalExp += 5;
-  SpaceState.skills.reputation.totalExp += 2;
+  SpaceState.skills.charisma.totalExp += 2;
   SpaceState.checkSkillUp('trading');
-  SpaceState.checkSkillUp('reputation');
+  SpaceState.checkSkillUp('charisma');
 
   // Contract tracking (deliver + sell types)
   if (SpaceState.activeContract) {
@@ -642,9 +642,9 @@ function sellAllCargo() {
 
   // Trading + Reputation XP for bulk sell
   SpaceState.skills.trading.totalExp += keys.length * 8;
-  SpaceState.skills.reputation.totalExp += keys.length * 3;
+  SpaceState.skills.charisma.totalExp += keys.length * 3;
   SpaceState.checkSkillUp('trading');
-  SpaceState.checkSkillUp('reputation');
+  SpaceState.checkSkillUp('charisma');
 
   SpaceState.cargo = {};
   _renderStation();
@@ -695,8 +695,8 @@ function completeStoryQuest() {
   const sq = STORY_QUESTS[SpaceState.storyProgress];
   if (!sq) return;
   SpaceState.player.credits += sq.reward.credits;
-  SpaceState.skills.reputation.totalExp += 30;
-  SpaceState.checkSkillUp('reputation');
+  SpaceState.skills.charisma.totalExp += 30;
+  SpaceState.checkSkillUp('charisma');
   SpaceState.storyProgress++;
   SpaceState.activeStoryQuest = null;
   _renderStation();
@@ -715,8 +715,8 @@ function completeMission() {
   const mission = MISSIONS.find(m => m.id === SpaceState.activeContract.id);
   if (!mission) return;
   SpaceState.player.credits += mission.reward.credits;
-  SpaceState.skills.reputation.totalExp += 20;
-  SpaceState.checkSkillUp('reputation');
+  SpaceState.skills.charisma.totalExp += 20;
+  SpaceState.checkSkillUp('charisma');
   SpaceState.completedMissions.push(mission.id);
   SpaceState.activeContract = null;
   _renderStation();

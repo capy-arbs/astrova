@@ -300,7 +300,7 @@ const SpaceState = {
     // Exploration
     exploration:   { level: 1, totalExp: 0 },
     scanning:      { level: 1, totalExp: 0 },
-    reputation:    { level: 1, totalExp: 0 },
+    charisma:      { level: 1, totalExp: 0 },
   },
 
   currentSystem: 'sol',
@@ -388,7 +388,7 @@ const SpaceState = {
   },
   getSellMultiplier() {
     const tradeBonus = Math.min(0.3, (this.skills.trading.level - 1) * 0.006);
-    const repBonus = Math.min(0.2, (this.skills.reputation.level - 1) * 0.004);
+    const repBonus = Math.min(0.2, (this.skills.charisma.level - 1) * 0.004);
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
     const shipBonus = shipDef.tradeBonus || 0;
     return 1 + tradeBonus + repBonus + shipBonus;
@@ -574,6 +574,11 @@ const SpaceState = {
       this.dronesInBay = data.dronesInBay || 0;
       this.completedMissions = data.completedMissions || [];
       if (data.skills) {
+        // Migrate old reputation → charisma
+        if (data.skills.reputation && !data.skills.charisma) {
+          data.skills.charisma = data.skills.reputation;
+          delete data.skills.reputation;
+        }
         for (const key of Object.keys(data.skills)) {
           if (this.skills[key]) this.skills[key] = data.skills[key];
         }
