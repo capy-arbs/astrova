@@ -186,6 +186,7 @@ class FlightScene extends Phaser.Scene {
 
     this.facingAngle = -Math.PI / 2;
     this.isInvincible = false;
+    this.cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
     this.pilotingTimer = 0;
     this.lastHitTime = 0;
     this.nearPlanet = null;
@@ -436,6 +437,41 @@ class FlightScene extends Phaser.Scene {
       }
     }
 
+    // ── Cloak system ─────────────────────────────────────────────────
+    const shipDef = SHIPS[SpaceState.player.ship] || SHIPS['starter'];
+    const canCloak = shipDef.cloak || false;
+
+    if (canCloak && Phaser.Input.Keyboard.JustDown(this.cKey)) {
+      if (!SpaceState.cloaked && SpaceState.cloakEnergy > 10) {
+        SpaceState.cloaked = true;
+        this._domFloat(this.player.x, this.player.y - 30, 'Cloak engaged', '#88aaff');
+      } else if (SpaceState.cloaked) {
+        SpaceState.cloaked = false;
+        this._domFloat(this.player.x, this.player.y - 30, 'Cloak disengaged', '#aaaaaa');
+      }
+    }
+
+    if (SpaceState.cloaked) {
+      SpaceState.cloakEnergy -= 20 * (delta / 1000); // drains ~20/sec = 5 seconds of cloak
+      if (SpaceState.cloakEnergy <= 0) {
+        SpaceState.cloakEnergy = 0;
+        SpaceState.cloaked = false;
+        this._domFloat(this.player.x, this.player.y - 30, 'Cloak depleted!', '#ff6644');
+      }
+      // Visual: ship goes translucent
+      this.player.setAlpha(0.25);
+      this.engine.setAlpha(0.15);
+    } else {
+      // Recharge when not cloaked
+      if (SpaceState.cloakEnergy < SpaceState.cloakMax) {
+        SpaceState.cloakEnergy = Math.min(SpaceState.cloakMax, SpaceState.cloakEnergy + 8 * (delta / 1000)); // recharges ~8/sec = 12.5s full recharge
+      }
+      if (!this.isInvincible) {
+        this.player.setAlpha(1);
+        this.engine.setAlpha(1);
+      }
+    }
+
     // ── Police AI + scanning ─────────────────────────────────────────
     if (SpaceState.wanted && SpaceState.wantedTimer > 0) {
       SpaceState.wantedTimer -= delta / 1000;
@@ -450,8 +486,8 @@ class FlightScene extends Phaser.Scene {
       if (!p.active) return;
       const dist = Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y);
 
-      if (SpaceState.wanted) {
-        // Chase player when wanted
+      if (SpaceState.wanted && !SpaceState.cloaked) {
+        // Chase player when wanted (and visible)
         if (dist < 400) {
           const angle = Phaser.Math.Angle.Between(p.x, p.y, this.player.x, this.player.y);
           p.setVelocity(Math.cos(angle) * 85, Math.sin(angle) * 85);
@@ -470,9 +506,9 @@ class FlightScene extends Phaser.Scene {
           p.setData('patrolTimer', p.getData('patrolTimer') - delta);
         }
 
-        // Scan player if within scan range and carrying contraband
+        // Scan player if within scan range and carrying contraband (not cloaked)
         const scanRange = SpaceState.getScanRange();
-        if (dist < scanRange && SpaceState.hasContraband()) {
+        if (dist < scanRange && SpaceState.hasContraband() && !SpaceState.cloaked) {
           if (!p.getData('scanCooldown') || p.getData('scanCooldown') <= 0) {
             p.setData('scanCooldown', 10000);
             // Always detected within range — no RNG
@@ -884,6 +920,22 @@ class FlightScene extends Phaser.Scene {
     document.getElementById('shield-fill').style.width = (Math.floor(p.shield) / maxSh * 100) + '%';
     document.getElementById('shield-text').textContent = `${Math.floor(p.shield)}/${maxSh}`;
     document.getElementById('hud-credits').textContent = `Credits: ${p.credits}`;
+
+    // Cloak bar (only for smuggler)
+    let cloakEl = document.getElementById('hud-cloak');
+    const curShipDef = SHIPS[p.ship] || SHIPS['starter'];
+    if (curShipDef.cloak) {
+      if (!cloakEl) {
+        cloakEl = document.createElement('div');
+        cloakEl.id = 'hud-cloak';
+        cloakEl.innerHTML = `<div class="hud-bar"><span class="hud-bar-label" style="color:#88aaff">CLOAK</span><div class="hud-bar-bg" style="background:rgba(60,60,120,0.3)"><div class="hud-bar-fill" id="cloak-fill" style="background:#4466aa;width:100%"></div><div class="hud-bar-text" id="cloak-text" style="color:#8899cc">100/100</div></div></div>`;
+        document.getElementById('hud-top-left').appendChild(cloakEl);
+      }
+      document.getElementById('cloak-fill').style.width = (SpaceState.cloakEnergy / SpaceState.cloakMax * 100) + '%';
+      document.getElementById('cloak-text').textContent = `${Math.floor(SpaceState.cloakEnergy)}/${SpaceState.cloakMax}` + (SpaceState.cloaked ? ' [C] ON' : ' [C]');
+    } else if (cloakEl) {
+      cloakEl.remove();
+    }
 
     // Wanted status
     const locEl = document.getElementById('hud-location');

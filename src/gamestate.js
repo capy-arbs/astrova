@@ -121,6 +121,7 @@ const SHIPS = {
     name: 'Smuggler',        spriteKey: 'ship-nairan-torpedo', size: 64,
     hp: 90, shield: 60, speedBonus: 20, cost: 1500, pilotReq: 15,
     scanRange: 25, // police must be within 25px to scan (vs 80 default)
+    cloak: true,   // can activate cloaking device
     path: _F2 + 'Nairan - Torpedo Ship - Base.png',
   },
   'nairan-dreadnought': {
@@ -182,8 +183,11 @@ const SpaceState = {
   completedMissions: [],
   totalSoldValue: 0,
   killCount: 0,
-  wanted: false,        // true = police are hostile
-  wantedTimer: 0,       // seconds remaining on wanted status
+  wanted: false,
+  wantedTimer: 0,
+  cloaked: false,
+  cloakEnergy: 100,     // 0-100, drains while cloaked, recharges when not
+  cloakMax: 100,
 
   checkSkillUp(skillName) {
     const skill = this.skills[skillName];
