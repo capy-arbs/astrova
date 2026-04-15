@@ -228,7 +228,7 @@ class FlightScene extends Phaser.Scene {
     this.cameras.main.fadeIn(500, 0, 0, 0);
 
     // ── Bullets ──────────────────────────────────────────────────────
-    this.bullets = this.physics.add.group({ maxSize: 30 });
+    this.bullets = this.physics.add.group({ maxSize: 60 });
     this.enemyBullets = this.physics.add.group({ maxSize: 40 });
     this.lastFired = 0;
 
@@ -863,22 +863,40 @@ class FlightScene extends Phaser.Scene {
   // ── Helpers ────────────────────────────────────────────────────────────────
   _fireBullet() {
     const wep = WEAPONS[SpaceState.player.weapon] || WEAPONS['auto-cannon'];
-    const angle = Phaser.Math.DegToRad(this.player.angle - 90) + (Math.random() - 0.5) * wep.spread;
-    const ox = Math.cos(angle) * 24;
-    const oy = Math.sin(angle) * 24;
-    const bullet = this.bullets.create(this.player.x + ox, this.player.y + oy, wep.bulletKey, 0);
-    if (!bullet) return;
-    bullet.setAngle(this.player.angle);
-    bullet.setDepth(8).setScale(0.8);
-    bullet.setData('angle', angle);
+    const count = SpaceState.getFireCount();
+    const baseAngle = Phaser.Math.DegToRad(this.player.angle - 90);
 
-    if (wep === WEAPONS['rockets']) {
-      // Rockets: start slow, accelerate over time
-      bullet.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
-      bullet.setData('accelerating', true);
-      bullet.setData('maxSpeed', wep.bulletSpeed);
-    } else {
-      bullet.setVelocity(Math.cos(angle) * wep.bulletSpeed, Math.sin(angle) * wep.bulletSpeed);
+    for (let i = 0; i < count; i++) {
+      // Spread projectiles in a fan pattern for multi-shot
+      let angle;
+      if (count === 1) {
+        angle = baseAngle + (Math.random() - 0.5) * wep.spread;
+      } else {
+        // Fan spread: e.g. 3 shots = -0.12, 0, +0.12 rad (~7° each)
+        const fanWidth = 0.08 * (count - 1); // wider fan for more projectiles
+        const step = count > 1 ? (fanWidth * 2) / (count - 1) : 0;
+        angle = baseAngle - fanWidth + step * i + (Math.random() - 0.5) * 0.02;
+      }
+
+      // Offset each projectile slightly so they don't stack
+      const sideOffset = count > 1 ? (i - (count - 1) / 2) * 4 : 0;
+      const perpAngle = baseAngle + Math.PI / 2;
+      const ox = Math.cos(baseAngle) * 24 + Math.cos(perpAngle) * sideOffset;
+      const oy = Math.sin(baseAngle) * 24 + Math.sin(perpAngle) * sideOffset;
+
+      const bullet = this.bullets.create(this.player.x + ox, this.player.y + oy, wep.bulletKey, 0);
+      if (!bullet) continue;
+      bullet.setAngle(this.player.angle);
+      bullet.setDepth(8).setScale(0.8);
+      bullet.setData('angle', angle);
+
+      if (wep === WEAPONS['rockets']) {
+        bullet.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
+        bullet.setData('accelerating', true);
+        bullet.setData('maxSpeed', wep.bulletSpeed);
+      } else {
+        bullet.setVelocity(Math.cos(angle) * wep.bulletSpeed, Math.sin(angle) * wep.bulletSpeed);
+      }
     }
   }
 

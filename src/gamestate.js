@@ -406,6 +406,19 @@ const SpaceState = {
     return Math.min(0.5, (this.skills.scanning.level - 1) * 0.008); // bonus rare spawn chance
   },
 
+  // Larger ships fire more projectiles per volley
+  getFireCount() {
+    const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
+    if (shipDef === SHIPS['klaed-dreadnought']) return 5;
+    if (shipDef === SHIPS['klaed-supercarrier']) return 3;
+    if (shipDef === SHIPS['nairan-dreadnought']) return 4;
+    if (shipDef === SHIPS['nautolan-carrier']) return 2;
+    if (shipDef === SHIPS['nairan-battlecruiser']) return 3;
+    if (shipDef.size === 128) return 3;
+    if (shipDef.size === 64) return 2;
+    return 1; // starter/small ships fire single shots
+  },
+
   getShipSpriteKey() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
     // Only starter ship has damage state sprites
