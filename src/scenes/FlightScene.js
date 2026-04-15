@@ -109,15 +109,58 @@ class FlightScene extends Phaser.Scene {
     if (sys.station) {
       this.stationX = sys.station.x;
       this.stationY = sys.station.y;
+      const sx = this.stationX, sy = this.stationY;
       const stGfx = this.add.graphics();
+
+      // Outer ring / docking ring
+      stGfx.lineStyle(2, 0x556677, 0.6);
+      stGfx.strokeCircle(sx, sy, 28);
+      stGfx.lineStyle(1, 0x667788, 0.3);
+      stGfx.strokeCircle(sx, sy, 32);
+
+      // Solar panel arms
+      stGfx.fillStyle(0x334466);
+      stGfx.fillRect(sx - 30, sy - 3, 14, 6);   // left arm
+      stGfx.fillRect(sx + 16, sy - 3, 14, 6);   // right arm
+      stGfx.fillRect(sx - 3, sy - 30, 6, 14);   // top arm
+      stGfx.fillRect(sx - 3, sy + 16, 6, 14);   // bottom arm
+
+      // Solar panels (on arm tips)
+      stGfx.fillStyle(0x4466aa, 0.7);
+      stGfx.fillRect(sx - 34, sy - 6, 6, 12);   // left panel
+      stGfx.fillRect(sx + 28, sy - 6, 6, 12);   // right panel
+      stGfx.fillRect(sx - 6, sy - 34, 12, 6);   // top panel
+      stGfx.fillRect(sx - 6, sy + 28, 12, 6);   // bottom panel
+
+      // Main hull (central structure)
       stGfx.fillStyle(0x556677);
-      stGfx.fillRect(this.stationX - 16, this.stationY - 16, 32, 32);
-      stGfx.fillStyle(0x8899aa);
-      stGfx.fillRect(this.stationX - 8, this.stationY - 20, 16, 40);
-      stGfx.fillRect(this.stationX - 20, this.stationY - 8, 40, 16);
-      stGfx.fillStyle(0xaabbcc);
-      stGfx.fillCircle(this.stationX, this.stationY, 6);
+      stGfx.fillRect(sx - 12, sy - 14, 24, 28);
+      stGfx.fillStyle(0x667788);
+      stGfx.fillRect(sx - 8, sy - 10, 16, 20);
+
+      // Windows / lights
+      stGfx.fillStyle(0xffcc66, 0.7);
+      stGfx.fillRect(sx - 5, sy - 7, 3, 2);
+      stGfx.fillRect(sx + 2, sy - 7, 3, 2);
+      stGfx.fillRect(sx - 5, sy + 5, 3, 2);
+      stGfx.fillRect(sx + 2, sy + 5, 3, 2);
+
+      // Central core (reactor glow)
+      stGfx.fillStyle(0x88ccff, 0.4);
+      stGfx.fillCircle(sx, sy, 5);
+      stGfx.fillStyle(0xaaddff, 0.7);
+      stGfx.fillCircle(sx, sy, 2);
+
+      // Docking bay indicators
+      stGfx.fillStyle(0x44ff88, 0.5);
+      stGfx.fillCircle(sx, sy + 22, 1.5);
+      stGfx.fillCircle(sx, sy - 22, 1.5);
+
       stGfx.setDepth(0.5);
+
+      // Slow rotation effect on the docking ring
+      this.stationRing = this.add.graphics().setDepth(0.4);
+      this._stationAngle = 0;
     }
 
     // ── Jump Gates ───────────────────────────────────────────────────
@@ -264,6 +307,21 @@ class FlightScene extends Phaser.Scene {
     this.bgStars.tilePositionY   = cam.scrollY * 0.15;
     this.bgStars2.tilePositionX  = cam.scrollX * 0.3;
     this.bgStars2.tilePositionY  = cam.scrollY * 0.3;
+
+    // ── Station ring rotation ────────────────────────────────────────
+    if (this.stationRing && this.stationX) {
+      this._stationAngle += delta * 0.0003;
+      this.stationRing.clear();
+      this.stationRing.lineStyle(1, 0x4488aa, 0.4);
+      const r = 26;
+      for (let i = 0; i < 8; i++) {
+        const a = this._stationAngle + (i * Math.PI / 4);
+        const dx = Math.cos(a) * r;
+        const dy = Math.sin(a) * r;
+        this.stationRing.fillStyle(0x44aacc, 0.6);
+        this.stationRing.fillCircle(this.stationX + dx, this.stationY + dy, 1.5);
+      }
+    }
 
     // ── Shield regen ─────────────────────────────────────────────────
     const p = SpaceState.player;
@@ -491,6 +549,12 @@ class FlightScene extends Phaser.Scene {
         }
         this._landOnPlanet(this.nearPlanet);
       } else if (this.stationX && Phaser.Math.Distance.Between(this.player.x, this.player.y, this.stationX, this.stationY) < 50) {
+        // Stop ship movement when docking
+        this.player.body.setVelocity(0, 0);
+        this._currentSpeed = 0;
+        // Snap to station
+        this.player.x = this.stationX;
+        this.player.y = this.stationY + 30;
         showStationScreen();
       }
     }
