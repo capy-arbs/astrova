@@ -945,23 +945,24 @@ class FlightScene extends Phaser.Scene {
   }
 
   _enemyBulletHitDrone(bullet, drone) {
-    if (!bullet.active || !drone.active) return;
-    bullet.destroy();
+    try {
+      if (!bullet || !drone || !bullet.active || !drone.active) return;
+      if (!drone.body) return; // already destroyed
+      bullet.destroy();
 
-    let droneHp = drone.getData('hp') - 1;
-    drone.setData('hp', droneHp);
-    drone.setTint(0xff8888);
-    this.time.delayedCall(100, () => { if (drone.active) drone.setTint(0x88ccff); });
+      let droneHp = (drone.getData('hp') || 1) - 1;
+      drone.setData('hp', droneHp);
+      drone.setTint(0xff8888);
+      this.time.delayedCall(100, () => { if (drone && drone.active) drone.setTint(0x88ccff); });
 
-    if (droneHp <= 0) {
-      this.tweens.add({
-        targets: drone, alpha: 0, scale: 0.05, duration: 150,
-        onComplete: () => {
-          drone.destroy();
-          this.drones = this.drones.filter(d => d.active);
-          this._domFloat(drone.x, drone.y, 'Drone destroyed!', '#ff6644');
-        },
-      });
+      if (droneHp <= 0) {
+        const dx = drone.x, dy = drone.y;
+        drone.destroy();
+        this.drones = this.drones.filter(d => d && d.active);
+        this._domFloat(dx, dy, 'Drone destroyed!', '#ff6644');
+      }
+    } catch (e) {
+      // Safely ignore if objects were already cleaned up
     }
   }
 
@@ -1075,7 +1076,9 @@ class FlightScene extends Phaser.Scene {
   }
 
   _droneHitEnemy(drone, enemy) {
-    if (!drone.active || !enemy.active) return;
+    try {
+    if (!drone || !enemy || !drone.active || !enemy.active) return;
+    if (!drone.body || !enemy.body) return;
 
     // Prevent rapid-fire overlap damage
     const now = this.time.now;
@@ -1096,15 +1099,10 @@ class FlightScene extends Phaser.Scene {
       this.time.delayedCall(100, () => { if (drone.active) drone.setTint(0x88ccff); });
 
       if (droneHp <= 0) {
-        // Drone destroyed!
-        this.tweens.add({
-          targets: drone, alpha: 0, scale: 0.05, duration: 150,
-          onComplete: () => {
-            drone.destroy();
-            this.drones = this.drones.filter(d => d.active);
-            this._domFloat(drone.x, drone.y, 'Drone lost!', '#ff6644');
-          },
-        });
+        const ddx = drone.x, ddy = drone.y;
+        drone.destroy();
+        this.drones = this.drones.filter(d => d && d.active);
+        this._domFloat(ddx, ddy, 'Drone lost!', '#ff6644');
       }
     }
 
@@ -1144,6 +1142,7 @@ class FlightScene extends Phaser.Scene {
         },
       });
     }
+    } catch (e) { /* safely ignore destroyed object errors */ }
   }
 
   _spawnDrone(index, total) {
