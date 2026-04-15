@@ -1,6 +1,6 @@
 # Astrova
 
-A space exploration RPG built with [Phaser 3](https://phaser.io/). Fly between star systems, land on planets, gather resources, fight pirates, and upgrade your ship.
+A space exploration RPG built with [Phaser 3](https://phaser.io/). Fly between star systems, land on planets, gather resources, trade, smuggle, and build your fleet.
 
 **Play now:** [https://capy-arbs.github.io/astrova/](https://capy-arbs.github.io/astrova/)
 
@@ -15,7 +15,11 @@ A [CapyForge Games](https://capy-arbs.github.io/capyforge/) title.
 |-----|--------|
 | WASD / Arrow Keys | Fly / Walk |
 | Space | Fire weapons |
-| E | Interact (land, dock, jump, take off) |
+| E | Interact (land, dock, jump, take off, hail traders) |
+| V | Deploy / Recall drones (carrier ships) |
+| C | Toggle cloak (smuggler ship) |
+| Q | Scanner pulse (on planet surface) |
+| Shift | Sprint (on planet surface) |
 | I | Cargo & Skills screen |
 | S | Save game |
 | ESC | Close menus |
@@ -28,22 +32,56 @@ A [CapyForge Games](https://capy-arbs.github.io/capyforge/) title.
 
 ## Features
 
-- **Open-world space flight** — 3000x3000 maps with physics-based ship movement
-- **3 star systems** — Sol, Alpha Centauri, Kepler Expanse — connected by hyperspace jump gates
-- **Planet exploration** — land on planets, walk around as an astronaut, gather resources
-- **15 skills** with RuneScape-style XP curve — all level by doing
-- **9 ships** — from starter to Carrier with autonomous combat drones
-- **4 weapons** — Auto Cannon, Rockets, Zapper, Big Space Gun
-- **Space stations** — trade resources, buy upgrades, purchase ships and weapons
-- **Passive regen** — shields and hull repair over time, scaling with skill levels
-- **Enemy AI** — 3 enemy types with aggro ranges, respawning
-- **Minimap** — shows planets, station, enemies, jump gates
-- **Mobile touch controls** — virtual joystick + action buttons
-- **Save system** — localStorage, auto-saves on system jumps
+### Exploration
+- **7 star systems** across 4 layers — from safe Core to deadly Unknown space
+- **Planet exploration** — land, walk as astronaut, gather resources, discover settlements
+- **Story campaign** — 6 quests guiding you from Sol to The Void
+- **Repeatable contracts** — kill, deliver, and trade missions at every station
+- **Exploration bounties** — chart all planets in a system for credit rewards
+- **Scanner pulse** — reveal hidden rare resources on planet surfaces
+- **Neutral traders** — hail friendly ships in space to buy resources
+
+### Combat
+- **Ranged combat** — enemies, police, and drones all shoot projectiles
+- **4 weapons** — Auto Cannon, Rockets (with acceleration), Zapper, Big Space Gun
+- **3 enemy factions** — Kla'ed, Pirates (red), Aliens (purple) scaling by system
+- **Carrier drones** — deploy/recall with V, auto-replace from bay, destructible
+
+### Ships
+- **17 ships** across 5 roles — combat, exploration, mining, trading, smuggling
+- **5 free starter ships** — pick your playstyle from the beginning
+- **Capital ships** — Dreadnought (800 HP) and Super-Carrier (6 drones) as endgame
+- **Ship physics** — acceleration, turn rate, and max speed scale by ship class
+- **Damage states** — starter ship visually degrades as hull drops
+
+### Economy
+- **Trade goods** — buy low in one system, sell high in another
+- **System-specific prices** — each system has demand bonuses
+- **Contraband** — illegal goods with huge margins, but police will scan you
+- **Crafting** — 6 recipes for consumable items (repair kits, damage amps, etc.)
+- **Cargo capacity** — varies by ship, manage your hold
+
+### Smuggling
+- **Smuggler ship** — reduced police scan range (25px vs 80px)
+- **Cloaking device** — press C to go invisible, 5 second duration
+- **Police patrols** — scan for contraband, chase when wanted
+- **Wanted status** — 60 second timer, police attack on sight
+
+### Skills
+- **15 skills** with RuneScape-style XP curve (levels 1-99)
+- All level by doing — combat from kills, piloting from flying, mining from gathering
+- Skills affect gameplay — speed, damage, fire rate, shield regen, sell prices, scan range
+
+### Quality of Life
+- **Save/Reset** buttons in cargo screen — no console needed
+- **Quest tracker** in HUD — shows story + contract progress
+- **Minimap** — planets, station, enemies, police, traders, jump gates
+- **Mobile touch controls** — responsive scaling for any device
+- **Passive regen** — shields and hull repair over time
 
 ## Game Guide
 
-See the [Wiki](WIKI.md) for detailed info on skills, ships, weapons, resources, and systems.
+See the [Wiki](WIKI.md) for detailed info on all systems, ships, skills, and mechanics.
 
 ## Tech
 
