@@ -581,10 +581,16 @@ const RESOURCE_DEFS = {
   'scrap-metal':    { name: 'Scrap Metal',    color: '#aaaaaa', value: 6  },
   'dust-crystal':   { name: 'Dust Crystal',   color: '#ccbb88', value: 15 },
   'ancient-relic':  { name: 'Ancient Relic',  color: '#ddaa44', value: 50 },
+  // Craftable trade goods
+  'refined-alloy':  { name: 'Refined Alloy',  color: '#bbbbcc', value: 60  },
+  'bio-catalyst':   { name: 'Bio Catalyst',   color: '#66dd88', value: 80  },
+  'cryo-lens':      { name: 'Cryo Lens',      color: '#88ccff', value: 120 },
+  'void-capacitor': { name: 'Void Capacitor', color: '#aa66ff', value: 200 },
 };
 
 // ── Crafting recipes ─────────────────────────────────────────────────────────
 const CRAFT_RECIPES = [
+  // ── Consumables ──────────────────────────────────
   { name: 'Repair Kit',     ingredients: { 'scrap-metal': 3 },                    craftLevel: 1,  xp: 15,
     type: 'consumable', effect: 'heal', amount: 50, desc: 'Restores 50 hull' },
   { name: 'Shield Cell',    ingredients: { 'ice-crystal': 2 },                    craftLevel: 5,  xp: 20,
@@ -597,6 +603,20 @@ const CRAFT_RECIPES = [
     type: 'consumable', effect: 'scan', desc: 'Reveals all enemies on minimap for 60s' },
   { name: 'Ancient Drive',  ingredients: { 'ancient-relic': 2, 'thermal-core': 2 }, craftLevel: 25, xp: 60,
     type: 'consumable', effect: 'warp', desc: 'Instant warp to station' },
+  // ── Craftable trade goods (craft + sell for profit) ──
+  { name: 'Refined Alloy',  ingredients: { 'scrap-metal': 5, 'magma-ore': 2 },   craftLevel: 8,  xp: 25,
+    type: 'trade', tradeKey: 'refined-alloy', desc: 'Craftable trade good — sells for 60cr base' },
+  { name: 'Bio Catalyst',   ingredients: { 'bio-matter': 3, 'water-sample': 2 }, craftLevel: 12, xp: 35,
+    type: 'trade', tradeKey: 'bio-catalyst', desc: 'Craftable trade good — sells for 80cr base' },
+  { name: 'Cryo Lens',      ingredients: { 'cryo-compound': 3, 'dust-crystal': 2 }, craftLevel: 18, xp: 45,
+    type: 'trade', tradeKey: 'cryo-lens', desc: 'Craftable trade good — sells for 120cr base' },
+  { name: 'Void Capacitor', ingredients: { 'thermal-core': 2, 'ancient-relic': 1, 'obsidian-shard': 3 }, craftLevel: 30, xp: 70,
+    type: 'trade', tradeKey: 'void-capacitor', desc: 'Craftable trade good — sells for 200cr base' },
+  // ── Mining / Exploration tools ────────────────────
+  { name: 'Mining Charge',  ingredients: { 'magma-ore': 3, 'dust-crystal': 1 },  craftLevel: 5,  xp: 20,
+    type: 'consumable', effect: 'mining-boost', amount: 2, duration: 60, desc: '+2 mining yield for 60s' },
+  { name: 'Deep Scanner',   ingredients: { 'cryo-compound': 2, 'ancient-relic': 1 }, craftLevel: 15, xp: 40,
+    type: 'consumable', effect: 'deep-scan', desc: 'Reveals all rare resources on current planet' },
 ];
 
 // ── Discoverable space objects ───────────────────────────────────────────────
@@ -710,9 +730,13 @@ const STATION_NPCS = {
 
 // ── Trade prices per system (multipliers — buy/sell differently per system) ──
 const TRADE_PRICES = {
-  'sol':             { buy: 1.0,  sell: 1.0,  bonus: ['plant-fiber', 'water-sample'] },
+  'sol':             { buy: 1.0,  sell: 1.0,  bonus: ['plant-fiber', 'water-sample', 'bio-matter'] },
   'alpha-centauri':  { buy: 1.1,  sell: 1.2,  bonus: ['ice-crystal', 'cryo-compound', 'thermal-core'] },
   'kepler':          { buy: 1.3,  sell: 1.5,  bonus: ['ancient-relic', 'obsidian-shard', 'magma-ore'] },
+  'deadzone':        { buy: 0.8,  sell: 1.8,  bonus: ['scrap-metal', 'fuel-cells', 'medical-supply'] },
+  'outerrim':        { buy: 1.2,  sell: 1.6,  bonus: ['magma-ore', 'thermal-core', 'obsidian-shard'] },
+  'nebula':          { buy: 1.5,  sell: 2.0,  bonus: ['ancient-relic', 'bio-matter', 'cryo-compound'] },
+  'void':            { buy: 2.0,  sell: 2.5,  bonus: ['ancient-relic', 'thermal-core', 'dust-crystal'] },
 };
 
 // ── Mission board ────────────────────────────────────────────────────────────
@@ -792,10 +816,27 @@ const MISSIONS = [
     desc: 'Destroy 10 pirates.', goal: { type: 'kill', count: 10 }, reward: { credits: 500 } },
   { id: 'r9', name: 'Scrap Collection',  system: 'outerrim',  repeatable: true,
     desc: 'Deliver 8 Scrap Metal.', goal: { type: 'deliver', resource: 'scrap-metal', count: 8 }, reward: { credits: 350 } },
+  { id: 'r10', name: 'Thermal Harvest',  system: 'outerrim',  repeatable: true,
+    desc: 'Deliver 4 Thermal Cores.', goal: { type: 'deliver', resource: 'thermal-core', count: 4 }, reward: { credits: 600 } },
+  // Trade-focused missions
+  { id: 'r11', name: 'Supply Run',       system: 'sol',       repeatable: true,
+    desc: 'Sell 500cr worth of cargo.', goal: { type: 'sell', amount: 500 }, reward: { credits: 200 } },
+  { id: 'r12', name: 'Big Haul',         system: 'alpha-centauri', repeatable: true,
+    desc: 'Sell 1000cr worth of cargo.', goal: { type: 'sell', amount: 1000 }, reward: { credits: 400 } },
+  { id: 'r13', name: 'Cryo Delivery',    system: 'kepler',    repeatable: true,
+    desc: 'Deliver 5 Cryo Compounds.', goal: { type: 'deliver', resource: 'cryo-compound', count: 5 }, reward: { credits: 350 } },
+  { id: 'r14', name: 'Frontier Trade',   system: 'outerrim',  repeatable: true,
+    desc: 'Sell 2000cr worth of cargo.', goal: { type: 'sell', amount: 2000 }, reward: { credits: 800 } },
+  // Mining-focused missions
+  { id: 'r15', name: 'Crystal Survey',   system: 'alpha-centauri', repeatable: true,
+    desc: 'Deliver 6 Ice Crystals and 3 Dust Crystals.', goal: { type: 'deliver', resource: 'ice-crystal', count: 6 }, reward: { credits: 200 } },
+  { id: 'r16', name: 'Obsidian Order',   system: 'kepler',    repeatable: true,
+    desc: 'Deliver 4 Obsidian Shards.', goal: { type: 'deliver', resource: 'obsidian-shard', count: 4 }, reward: { credits: 350 } },
 ];
 
 // ── Planet settlement data ───────────────────────────────────────────────────
 const PLANET_SETTLEMENTS = {
+  // ── SOL ───────────────────────────────────────────
   'Terra Nova': {
     hasSettlement: true,
     name: 'New Hope Colony',
@@ -808,6 +849,7 @@ const PLANET_SETTLEMENTS = {
       { name: 'Farmer Eli', dialog: [
         "Growing food in alien soil isn't easy, but we manage.",
         "The plant life here is remarkable — so much to study.",
+        "Tip: Bio Matter sells great in Alpha Centauri.",
       ]},
     ],
     shop: [
@@ -815,7 +857,25 @@ const PLANET_SETTLEMENTS = {
       { resource: 'water-sample', price: 5 },
       { resource: 'bio-matter', price: 8 },
     ],
+    services: ['repair'],
   },
+  'Dust Rock': {
+    hasSettlement: true,
+    name: 'Dusty\'s Salvage Yard',
+    npcs: [
+      { name: 'Dusty Morgan', dialog: [
+        "One man's wreck is another man's fortune.",
+        "Scrap Metal ain't glamorous, but it keeps the lights on.",
+        "I can patch up your hull if you need it. Cheap, too.",
+      ]},
+    ],
+    shop: [
+      { resource: 'scrap-metal', price: 4 },
+      { resource: 'dust-crystal', price: 10 },
+    ],
+    services: ['repair'],
+  },
+  // ── ALPHA CENTAURI ────────────────────────────────
   'Glacius': {
     hasSettlement: true,
     name: 'Cryo Station Omega',
@@ -825,11 +885,18 @@ const PLANET_SETTLEMENTS = {
         "Cryo Compounds could revolutionize our shield technology.",
         "Be careful on the surface — temperatures drop fast.",
       ]},
+      { name: 'Technician Yuri', dialog: [
+        "We refine Cryo Compounds into Shield Cells here.",
+        "Bring me the raw materials and I'll sell you the good stuff.",
+        "Kepler stations pay double for anything cryo-based.",
+      ]},
     ],
     shop: [
       { resource: 'ice-crystal', price: 8 },
       { resource: 'cryo-compound', price: 14 },
+      { resource: 'water-sample', price: 4 },
     ],
+    services: ['repair', 'refuel'],
   },
   'Haven': {
     hasSettlement: true,
@@ -838,8 +905,13 @@ const PLANET_SETTLEMENTS = {
       { name: 'Smuggler Quinn', dialog: [
         "You didn't see me here, and I didn't see you.",
         "I deal in... hard to find items. The kind patrols don't like.",
-        "Get yourself a Smuggler-class ship — hidden cargo bays.",
+        "Get yourself a Smuggler-class ship — smaller scan signature.",
         "Everything's got a price in Haven.",
+      ]},
+      { name: 'Fence Marlo', dialog: [
+        "Stolen Tech moves fast in the Outer Rim. Huge margins.",
+        "Restricted Data? That's endgame money. Void stations pay top credit.",
+        "Just don't get scanned by police. They confiscate everything.",
       ]},
     ],
     shop: [
@@ -850,6 +922,212 @@ const PLANET_SETTLEMENTS = {
       { resource: 'smuggled-relics', price: 80, contraband: true },
       { resource: 'restricted-data', price: 100, contraband: true },
     ],
+  },
+  'Frostheim': {
+    hasSettlement: true,
+    name: 'Frostheim Mining Camp',
+    npcs: [
+      { name: 'Foreman Kira', dialog: [
+        "We run a tight operation here. Ice mining, dawn to dusk.",
+        "Higher Mining skill means you pull more per node. Worth leveling.",
+        "The deep ice has Cryo Compounds — valuable stuff.",
+      ]},
+    ],
+    shop: [
+      { resource: 'ice-crystal', price: 6 },
+      { resource: 'cryo-compound', price: 12 },
+    ],
+    services: ['repair'],
+  },
+  // ── KEPLER ────────────────────────────────────────
+  'Oasis': {
+    hasSettlement: true,
+    name: 'Oasis Trading Post',
+    npcs: [
+      { name: 'Merchant Sana', dialog: [
+        "Welcome to the only green spot in Kepler. Drink's on me.",
+        "We trade in everything out here. Resources, information, favors.",
+        "Exotic Matter from the station sells for a killing back in Sol.",
+      ]},
+      { name: 'Old Voss', dialog: [
+        "I've been here since before the Kla'ed showed up.",
+        "The Ancient Relics aren't just valuable — they're a map.",
+        "Every relic points somewhere deeper. Into the unknown.",
+      ]},
+    ],
+    shop: [
+      { resource: 'bio-matter', price: 6 },
+      { resource: 'plant-fiber', price: 2 },
+      { resource: 'water-sample', price: 4 },
+      { resource: 'ancient-relic', price: 40 },
+    ],
+    services: ['repair', 'refuel'],
+  },
+  'Hellion': {
+    hasSettlement: true,
+    name: 'Hellion Smeltery',
+    npcs: [
+      { name: 'Smelter Kade', dialog: [
+        "Hottest forge this side of the core. Magma Ore practically refines itself.",
+        "Obsidian Shards make the best weapon components. Crafters love 'em.",
+        "Don't stay too long on the surface. The vents are unpredictable.",
+      ]},
+    ],
+    shop: [
+      { resource: 'magma-ore', price: 14 },
+      { resource: 'obsidian-shard', price: 18 },
+      { resource: 'thermal-core', price: 28 },
+    ],
+    services: ['repair'],
+  },
+  // ── DEAD ZONE ─────────────────────────────────────
+  'Wreckage Field': {
+    hasSettlement: true,
+    name: 'The Scrapheap',
+    npcs: [
+      { name: 'Rat', dialog: [
+        "No laws out here. No stations either. Just us and the wrecks.",
+        "I pull what I can from the debris. Good scrap if you know where to look.",
+        "Watch for pirates. They don't take kindly to competition.",
+      ]},
+      { name: 'Whisper', dialog: [
+        "I hear things. Transmissions from beyond the Nebula gate.",
+        "Something's out there. Something old.",
+        "The pirates are scared of it too. That should tell you something.",
+      ]},
+    ],
+    shop: [
+      { resource: 'scrap-metal', price: 3 },
+      { resource: 'dust-crystal', price: 8 },
+      { resource: 'stolen-tech', price: 35, contraband: true },
+    ],
+  },
+  // ── OUTER RIM ─────────────────────────────────────
+  'Exile': {
+    hasSettlement: true,
+    name: 'Exile Station',
+    npcs: [
+      { name: 'Warden Lux', dialog: [
+        "This used to be a prison colony. Now we're all just... here.",
+        "People come to the Rim when they've got nowhere else to go.",
+        "We trade fair though. Fairer than the Core, anyway.",
+      ]},
+      { name: 'Doc Abara', dialog: [
+        "Medical supplies are worth their weight in gold out here.",
+        "I can patch your hull up, but it won't be pretty.",
+        "If you're heading to the Void... bring everything you can carry.",
+      ]},
+    ],
+    shop: [
+      { resource: 'ice-crystal', price: 10 },
+      { resource: 'scrap-metal', price: 4 },
+      { resource: 'black-market-arms', price: 55, contraband: true },
+      { resource: 'smuggled-relics', price: 70, contraband: true },
+    ],
+    services: ['repair', 'refuel'],
+  },
+  'Slagforge': {
+    hasSettlement: true,
+    name: 'Slagforge Foundry',
+    npcs: [
+      { name: 'Ironhand', dialog: [
+        "We forge tools, weapons, hull plating. Whatever you need.",
+        "Magma Ore and Thermal Cores — that's what keeps this place alive.",
+        "Crafting skill 15 or higher? I've got recipes you haven't seen.",
+      ]},
+    ],
+    shop: [
+      { resource: 'magma-ore', price: 12 },
+      { resource: 'thermal-core', price: 22 },
+      { resource: 'obsidian-shard', price: 16 },
+    ],
+    services: ['repair'],
+  },
+  // ── NEBULA ────────────────────────────────────────
+  'Genesis': {
+    hasSettlement: true,
+    name: 'Genesis Research Base',
+    npcs: [
+      { name: 'Dr. Yuki Tanaka', dialog: [
+        "This planet... it's alive in ways we don't understand.",
+        "The bio-readings are off the charts. Pre-human ecosystems.",
+        "Whatever built the relics — they seeded life here. Deliberately.",
+      ]},
+      { name: 'Pilot Vega', dialog: [
+        "I'm stranded here. My ship couldn't handle the Nebula radiation.",
+        "If you've got spare Fuel Cells, I'd pay well for them.",
+        "The Void gate is close. I've seen ships go in. None come back.",
+      ]},
+    ],
+    shop: [
+      { resource: 'bio-matter', price: 5 },
+      { resource: 'plant-fiber', price: 2 },
+      { resource: 'water-sample', price: 3 },
+      { resource: 'ancient-relic', price: 30 },
+    ],
+    services: ['repair'],
+  },
+  'Anomaly Prime': {
+    hasSettlement: true,
+    name: 'Anomaly Outpost',
+    npcs: [
+      { name: 'The Watcher', dialog: [
+        "You feel it too, don't you? The pull.",
+        "This planet shouldn't exist. A lava world inside a nebula.",
+        "The readings here break every model we have.",
+        "I've been studying the thermal signatures. They're... organized.",
+      ]},
+    ],
+    shop: [
+      { resource: 'magma-ore', price: 10 },
+      { resource: 'thermal-core', price: 18 },
+      { resource: 'restricted-data', price: 85, contraband: true },
+    ],
+  },
+  // ── VOID ──────────────────────────────────────────
+  'Last Garden': {
+    hasSettlement: true,
+    name: 'The Last Garden',
+    npcs: [
+      { name: 'The Gardener', dialog: [
+        "You made it. Not many do.",
+        "This garden... it was planted by something ancient. A gift, maybe.",
+        "Or a test. I can never decide.",
+        "Take what you need. The garden always grows back.",
+      ]},
+      { name: 'Echo', dialog: [
+        "I've been here so long I forgot what system I came from.",
+        "The Eye watches everything. You'll see.",
+        "There's a signal beneath the surface. On every planet here.",
+        "Don't try to decode it. Just... listen.",
+      ]},
+    ],
+    shop: [
+      { resource: 'bio-matter', price: 3 },
+      { resource: 'plant-fiber', price: 1 },
+      { resource: 'water-sample', price: 2 },
+      { resource: 'ancient-relic', price: 20 },
+    ],
+    services: ['repair', 'refuel'],
+  },
+  'Terminus': {
+    hasSettlement: true,
+    name: 'Terminus Station',
+    npcs: [
+      { name: 'Commander Null', dialog: [
+        "This is the end of charted space. Beyond here, there's nothing.",
+        "Or everything. Depends who you ask.",
+        "We've catalogued 47 alien signal types from The Eye alone.",
+        "None of them match any known language. Including Kla'ed.",
+      ]},
+    ],
+    shop: [
+      { resource: 'scrap-metal', price: 2 },
+      { resource: 'dust-crystal', price: 6 },
+      { resource: 'restricted-data', price: 75, contraband: true },
+      { resource: 'ancient-relic', price: 25 },
+    ],
+    services: ['repair'],
   },
 };
 
@@ -863,11 +1141,20 @@ const CONTRABAND = {
 
 // ── Trade goods (buy at stations, sell at other stations) ────────────────────
 const TRADE_GOODS = {
-  'electronics':    { name: 'Electronics',    color: '#44aaff', buyAt: 'sol',            buyPrice: 40,  sellBonus: { 'alpha-centauri': 1.8, 'kepler': 2.2 } },
-  'medical-supply': { name: 'Medical Supply', color: '#44ff88', buyAt: 'sol',            buyPrice: 30,  sellBonus: { 'alpha-centauri': 1.5, 'kepler': 2.0 } },
-  'luxury-goods':   { name: 'Luxury Goods',   color: '#ffaa44', buyAt: 'alpha-centauri', buyPrice: 60,  sellBonus: { 'sol': 1.6, 'kepler': 1.4 } },
-  'exotic-matter':  { name: 'Exotic Matter',  color: '#cc44ff', buyAt: 'kepler',         buyPrice: 100, sellBonus: { 'sol': 2.5, 'alpha-centauri': 2.0 } },
-  'fuel-cells':     { name: 'Fuel Cells',     color: '#ffcc22', buyAt: 'alpha-centauri', buyPrice: 25,  sellBonus: { 'sol': 1.3, 'kepler': 1.7 } },
+  // Core routes (Sol ↔ Alpha Centauri ↔ Kepler)
+  'electronics':    { name: 'Electronics',    color: '#44aaff', buyAt: 'sol',            buyPrice: 40,  sellBonus: { 'alpha-centauri': 1.8, 'kepler': 2.2, 'outerrim': 2.5 } },
+  'medical-supply': { name: 'Medical Supply', color: '#44ff88', buyAt: 'sol',            buyPrice: 30,  sellBonus: { 'alpha-centauri': 1.5, 'kepler': 2.0, 'outerrim': 2.8, 'deadzone': 3.0 } },
+  'luxury-goods':   { name: 'Luxury Goods',   color: '#ffaa44', buyAt: 'alpha-centauri', buyPrice: 60,  sellBonus: { 'sol': 1.6, 'kepler': 1.4, 'outerrim': 2.0 } },
+  'exotic-matter':  { name: 'Exotic Matter',  color: '#cc44ff', buyAt: 'kepler',         buyPrice: 100, sellBonus: { 'sol': 2.5, 'alpha-centauri': 2.0, 'nebula': 1.8 } },
+  'fuel-cells':     { name: 'Fuel Cells',     color: '#ffcc22', buyAt: 'alpha-centauri', buyPrice: 25,  sellBonus: { 'sol': 1.3, 'kepler': 1.7, 'deadzone': 2.5, 'nebula': 3.0 } },
+  // Frontier routes (risk/reward — buy in dangerous space, sell in safe space)
+  'salvaged-tech':  { name: 'Salvaged Tech',  color: '#88aacc', buyAt: 'deadzone',       buyPrice: 45,  sellBonus: { 'sol': 2.8, 'alpha-centauri': 2.2, 'kepler': 1.8 } },
+  'pirate-bounty':  { name: 'Pirate Bounty',  color: '#cc6644', buyAt: 'outerrim',       buyPrice: 70,  sellBonus: { 'sol': 2.5, 'alpha-centauri': 2.0 } },
+  'alien-samples':  { name: 'Alien Samples',  color: '#aa44ff', buyAt: 'nebula',         buyPrice: 120, sellBonus: { 'sol': 3.0, 'alpha-centauri': 2.5, 'kepler': 2.0 } },
+  'void-essence':   { name: 'Void Essence',   color: '#6644cc', buyAt: 'void',           buyPrice: 200, sellBonus: { 'sol': 3.5, 'alpha-centauri': 3.0, 'kepler': 2.5 } },
+  // Mid-tier specialty goods
+  'refined-cryo':   { name: 'Refined Cryo',   color: '#66ddff', buyAt: 'alpha-centauri', buyPrice: 50,  sellBonus: { 'kepler': 2.0, 'outerrim': 1.8, 'nebula': 2.2 } },
+  'magma-ingots':   { name: 'Magma Ingots',   color: '#ff8844', buyAt: 'kepler',         buyPrice: 65,  sellBonus: { 'sol': 1.8, 'alpha-centauri': 1.6, 'outerrim': 2.0 } },
 };
 
 // ── Rare resources (chance to spawn on planets) ──────────────────────────────

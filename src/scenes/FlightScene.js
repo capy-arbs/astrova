@@ -666,19 +666,54 @@ class FlightScene extends Phaser.Scene {
         // Scan player if within scan range and carrying contraband (not cloaked)
         const scanRange = SpaceState.getScanRange();
         if (dist < scanRange && SpaceState.hasContraband() && !SpaceState.cloaked) {
-          if (!p.getData('scanCooldown') || p.getData('scanCooldown') <= 0) {
-            p.setData('scanCooldown', 10000);
-            // Always detected within range — no RNG
+          // Scanning takes time — builds up over frames spent in range
+          const scanProgress = (p.getData('scanProgress') || 0) + delta / 1000;
+          p.setData('scanProgress', scanProgress);
+
+          // Show scanning indicator
+          if (scanProgress > 0.5 && scanProgress < 2.0) {
+            if (!p.getData('scanWarnShown')) {
+              p.setData('scanWarnShown', true);
+              this._domFloat(this.player.x, this.player.y - 20, 'SCANNING...', '#ffcc44');
+            }
+          }
+
+          // Scan completes after 2 seconds in range
+          if (scanProgress >= 2.0 && (!p.getData('scanCooldown') || p.getData('scanCooldown') <= 0)) {
+            p.setData('scanCooldown', 30000); // don't re-scan for 30s
+            p.setData('scanProgress', 0);
+            p.setData('scanWarnShown', false);
             SpaceState.wanted = true;
             SpaceState.wantedTimer = 60;
+
+            // Confiscate contraband + fine
+            let confiscated = 0;
+            for (const key of Object.keys(SpaceState.cargo)) {
+              if (CONTRABAND[key]) {
+                confiscated += SpaceState.cargo[key];
+                delete SpaceState.cargo[key];
+              }
+            }
+            const fine = Math.min(SpaceState.player.credits, confiscated * 25);
+            SpaceState.player.credits -= fine;
+
             this._domFloat(this.player.x, this.player.y - 30, 'CONTRABAND DETECTED! WANTED!', '#ff4444', 2000);
+            if (confiscated > 0) {
+              this._domFloat(this.player.x, this.player.y - 45, `${confiscated} items confiscated! -${fine}cr fine`, '#ff6644', 2500);
+            }
+          }
+        } else {
+          // Out of range or no contraband — reset scan progress
+          if (p.getData('scanProgress') > 0) {
+            p.setData('scanProgress', 0);
+            p.setData('scanWarnShown', false);
           }
         }
         // Warning when police getting close with contraband
-        if (dist < scanRange + 40 && dist >= scanRange && SpaceState.hasContraband()) {
+        if (dist < scanRange + 50 && dist >= scanRange && SpaceState.hasContraband() && !SpaceState.cloaked) {
           if (!p.getData('warnCooldown') || p.getData('warnCooldown') <= 0) {
             p.setData('warnCooldown', 3000);
-            this._domFloat(this.player.x, this.player.y - 20, 'Police scanning nearby...', '#ffcc44');
+            this._domFloat(this.player.x, this.player.y - 20, 'Police nearby — contraband at risk!', '#ffcc44');
           }
         }
         if (p.getData('scanCooldown') > 0) p.setData('scanCooldown', p.getData('scanCooldown') - delta);

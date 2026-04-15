@@ -749,12 +749,22 @@ function craftItem(idx) {
   for (const [key, qty] of Object.entries(recipe.ingredients)) {
     SpaceState.removeCargo(key, qty);
   }
-  // Add crafted item
-  if (!SpaceState.items) SpaceState.items = {};
-  SpaceState.items[recipe.name] = (SpaceState.items[recipe.name] || 0) + 1;
+  // Trade-type recipes produce cargo, consumables go to items
+  if (recipe.type === 'trade' && recipe.tradeKey) {
+    if (SpaceState.isCargoFull()) return; // need cargo space
+    SpaceState.addCargo(recipe.tradeKey, 1);
+  } else {
+    if (!SpaceState.items) SpaceState.items = {};
+    SpaceState.items[recipe.name] = (SpaceState.items[recipe.name] || 0) + 1;
+  }
   // Crafting XP
   SpaceState.skills.crafting.totalExp += recipe.xp;
   SpaceState.checkSkillUp('crafting');
+  // Trading XP for crafted trade goods
+  if (recipe.type === 'trade') {
+    SpaceState.skills.trading.totalExp += 8;
+    SpaceState.checkSkillUp('trading');
+  }
   _renderStation();
 }
 
@@ -771,8 +781,11 @@ function useItem(name) {
     p.hp = Math.min(p.maxHp + SpaceState.getMaxHpBonus(), p.hp + recipe.amount);
   } else if (recipe.effect === 'shield') {
     p.shield = Math.min(p.maxShield + SpaceState.getMaxShieldBonus(), p.shield + recipe.amount);
-  } else if (recipe.effect === 'speed' || recipe.effect === 'damage') {
+  } else if (recipe.effect === 'speed' || recipe.effect === 'damage' || recipe.effect === 'mining-boost') {
     SpaceState.activeBuff = { effect: recipe.effect, amount: recipe.amount, duration: recipe.duration, timer: recipe.duration };
+  } else if (recipe.effect === 'deep-scan') {
+    // Reveal all rare resources on current planet (handled by PlanetScene)
+    SpaceState._deepScanPending = true;
   }
   // Re-render whichever screen is open
   if (_cargoOpen) { hideCargoScreen(); showCargoScreen(); }
@@ -985,6 +998,28 @@ function showSettlementScreen(settlement, planetName) {
     </div>`;
   }).join('');
 
+  // Services section (repair, refuel)
+  let servicesHtml = '';
+  if (settlement.services && settlement.services.length > 0) {
+    const p = SpaceState.player;
+    const maxHp = p.maxHp + SpaceState.getMaxHpBonus();
+    const maxSh = p.maxShield + SpaceState.getMaxShieldBonus();
+    const svcBtns = [];
+    if (settlement.services.includes('repair') && p.hp < maxHp) {
+      const cost = Math.ceil((maxHp - p.hp) * 1.5); // cheaper than station
+      const canAfford = p.credits >= cost;
+      svcBtns.push(`<button onclick="settlementRepair()" ${!canAfford?'disabled':''} style="background:${canAfford?'#1a2a1a':'#181818'};color:${canAfford?'#44cc44':'#444'};border:1px solid ${canAfford?'#44cc44':'#222'};border-radius:3px;padding:4px 10px;cursor:${canAfford?'pointer':'default'};font-size:11px;">Repair Hull (${cost}cr)</button>`);
+    }
+    if (settlement.services.includes('refuel') && p.shield < maxSh) {
+      const cost = Math.ceil((maxSh - p.shield) * 1);
+      const canAfford = p.credits >= cost;
+      svcBtns.push(`<button onclick="settlementRefuel()" ${!canAfford?'disabled':''} style="background:${canAfford?'#1a1a2a':'#181818'};color:${canAfford?'#4488ff':'#444'};border:1px solid ${canAfford?'#4488ff':'#222'};border-radius:3px;padding:4px 10px;cursor:${canAfford?'pointer':'default'};font-size:11px;">Recharge Shields (${cost}cr)</button>`);
+    }
+    if (svcBtns.length > 0) {
+      servicesHtml = `<div style="font-size:13px;color:#88aacc;margin-top:10px;margin-bottom:6px;">SERVICES</div><div style="display:flex;gap:8px;flex-wrap:wrap;">${svcBtns.join('')}</div>`;
+    }
+  }
+
   el.innerHTML = `
     <div style="position:absolute;inset:0;background:rgba(0,0,0,0.7);" onclick="hideSettlementScreen()"></div>
     <div style="position:relative;background:#12121a;border:1px solid #2a2a3a;border-radius:10px;padding:20px;min-width:350px;max-width:500px;max-height:80vh;overflow-y:auto;color:#ddd;" onclick="event.stopPropagation()">
@@ -993,7 +1028,8 @@ function showSettlementScreen(settlement, planetName) {
       <div style="font-size:13px;color:#aabbcc;margin-bottom:6px;">PEOPLE</div>
       ${npcHtml}
       ${shopHtml ? `<div style="font-size:13px;color:#44cc88;margin-top:10px;margin-bottom:6px;">BUY RESOURCES</div>${shopHtml}` : ''}
-      <div style="text-align:center;color:#ddcc44;font-size:12px;margin-top:10px;">Credits: ${SpaceState.player.credits}</div>
+      ${servicesHtml}
+      <div style="text-align:center;color:#ddcc44;font-size:12px;margin-top:10px;">Credits: ${SpaceState.player.credits} | Cargo: ${SpaceState.getCargoUsed()}/${SpaceState.getCargoCapacity()}</div>
       <div style="text-align:center;color:#445;font-size:11px;margin-top:4px;">[ESC] or click outside to leave</div>
       <button onclick="hideSettlementScreen()" style="display:block;margin:8px auto 0;background:#1a1a2a;color:#aaa;border:1px solid #555;border-radius:4px;padding:6px 24px;cursor:pointer;font-size:12px;">Leave</button>
     </div>`;
@@ -1014,6 +1050,43 @@ function buySettlementItem(resource, price) {
     return s.shop && s.shop.some(si => si.resource === resource && si.price === price);
   })];
   if (settlement) showSettlementScreen(settlement, '');
+}
+
+function settlementRepair() {
+  const p = SpaceState.player;
+  const maxHp = p.maxHp + SpaceState.getMaxHpBonus();
+  const missing = maxHp - p.hp;
+  if (missing <= 0) return;
+  const cost = Math.ceil(missing * 1.5);
+  if (p.credits < cost) return;
+  p.credits -= cost;
+  p.hp = maxHp;
+  // Re-render settlement
+  hideSettlementScreen();
+  const key = Object.keys(PLANET_SETTLEMENTS).find(k => PLANET_SETTLEMENTS[k].services && PLANET_SETTLEMENTS[k].services.includes('repair'));
+  // Just re-find the current settlement and reopen
+  _reopenSettlement();
+}
+
+function settlementRefuel() {
+  const p = SpaceState.player;
+  const maxSh = p.maxShield + SpaceState.getMaxShieldBonus();
+  const missing = maxSh - p.shield;
+  if (missing <= 0) return;
+  const cost = Math.ceil(missing * 1);
+  if (p.credits < cost) return;
+  p.credits -= cost;
+  p.shield = maxSh;
+  hideSettlementScreen();
+  _reopenSettlement();
+}
+
+function _reopenSettlement() {
+  // Find and reopen the last settlement (bit hacky but works)
+  const scene = game.scene.getScenes(true)[0];
+  if (scene && scene.settlement) {
+    showSettlementScreen(scene.settlement, scene.planetInfo ? scene.planetInfo.name : '');
+  }
 }
 
 function hideSettlementScreen() {
