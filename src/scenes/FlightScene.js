@@ -955,26 +955,35 @@ class FlightScene extends Phaser.Scene {
   _droneHitEnemy(drone, enemy) {
     if (!drone.active || !enemy.active) return;
 
+    // Prevent rapid-fire overlap damage
+    const now = this.time.now;
+    if (drone.getData('lastHit') && now - drone.getData('lastHit') < 500) return;
+    drone.setData('lastHit', now);
+
     // Contact damage from drones (scales with Drone Command)
     const droneDmg = SpaceState.getDroneDamage();
     let hp = enemy.getData('hp') - droneDmg;
 
-    // Drone takes damage too on contact
-    let droneHp = drone.getData('hp') - 1;
-    drone.setData('hp', droneHp);
-    drone.setTint(0xff8888);
-    this.time.delayedCall(100, () => { if (drone.active) drone.setTint(0x88ccff); });
+    // Drone takes damage on contact — but only from tougher enemies
+    const enemyLayer = enemy.getData('layer') || 1;
+    const dmgChance = enemyLayer >= 3 ? 0.5 : enemyLayer >= 2 ? 0.25 : 0.1;
+    if (Math.random() < dmgChance) {
+      let droneHp = drone.getData('hp') - 1;
+      drone.setData('hp', droneHp);
+      drone.setTint(0xff8888);
+      this.time.delayedCall(100, () => { if (drone.active) drone.setTint(0x88ccff); });
 
-    if (droneHp <= 0) {
-      // Drone destroyed!
-      this.tweens.add({
-        targets: drone, alpha: 0, scale: 0.05, duration: 150,
-        onComplete: () => {
-          drone.destroy();
-          this.drones = this.drones.filter(d => d.active);
-          this._domFloat(drone.x, drone.y, 'Drone lost!', '#ff6644');
-        },
-      });
+      if (droneHp <= 0) {
+        // Drone destroyed!
+        this.tweens.add({
+          targets: drone, alpha: 0, scale: 0.05, duration: 150,
+          onComplete: () => {
+            drone.destroy();
+            this.drones = this.drones.filter(d => d.active);
+            this._domFloat(drone.x, drone.y, 'Drone lost!', '#ff6644');
+          },
+        });
+      }
     }
 
     // Drone Command XP
@@ -1025,7 +1034,7 @@ class FlightScene extends Phaser.Scene {
     drone.setData('state', 'orbit');
     drone.setData('target', null);
     drone.setData('fireTimer', 0);
-    drone.setData('hp', 3); // drones have 3 HP
+    drone.setData('hp', 8); // drones have 8 HP
     this.drones.push(drone);
     this.physics.add.overlap(drone, this.enemies, (d, e) => this._droneHitEnemy(d, e));
   }
