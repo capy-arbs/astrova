@@ -322,7 +322,7 @@ function _stationTradeTab() {
   }
 
   const sellAllValue = cargoKeys.reduce((s, k) => {
-    const def = RESOURCE_DEFS[k]; if (!def) return s;
+    const def = RESOURCE_DEFS[k] || CONTRABAND[k]; if (!def) return s;
     const isBonus = tradePrices.bonus.includes(k);
     return s + cargo[k] * Math.floor(def.value * mult * tradePrices.sell * (isBonus ? 1.5 : 1));
   }, 0);
@@ -446,7 +446,7 @@ function _stationNPCsTab() {
 }
 
 function sellCargo(key) {
-  const def = RESOURCE_DEFS[key];
+  const def = RESOURCE_DEFS[key] || CONTRABAND[key];
   if (!def || !SpaceState.cargo[key]) return;
   const sys = SpaceState.currentSystem;
   const tp = TRADE_PRICES[sys] || TRADE_PRICES['sol'];
@@ -480,9 +480,13 @@ function sellAllCargo() {
   const keys = Object.keys(SpaceState.cargo);
   let total = 0;
   const mult = SpaceState.getSellMultiplier();
+  const sys = SpaceState.currentSystem;
+  const tp = TRADE_PRICES[sys] || TRADE_PRICES['sol'];
   keys.forEach(key => {
-    const def = RESOURCE_DEFS[key];
-    if (def) total += Math.floor(def.value * mult) * SpaceState.cargo[key];
+    const def = RESOURCE_DEFS[key] || CONTRABAND[key];
+    if (!def) return;
+    const isBonus = tp.bonus.includes(key);
+    total += Math.floor(def.value * mult * tp.sell * (isBonus ? 1.5 : 1)) * SpaceState.cargo[key];
   });
   SpaceState.player.credits += total;
 
