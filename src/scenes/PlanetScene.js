@@ -202,6 +202,15 @@ class PlanetScene extends Phaser.Scene {
       D: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    this.iKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.I);
+    this.qKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+    this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+
+    this.explorationTimer = 0;
+    this.scanCooldown = 0;
+    this.scanPulses = [];
+    this.distanceTraveled = 0;
+    this.lastPlayerPos = { x: this.player.x, y: this.player.y };
 
     // ── Story quest: land on planet ─────────────────────────────────
     if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
@@ -213,6 +222,7 @@ class PlanetScene extends Phaser.Scene {
 
     // ── HUD update ───────────────────────────────────────────────────
     document.getElementById('hud-location').textContent = this.planetInfo.name + ' (Surface)';
+    this._updatePlanetHUD();
   }
 
   update(time, delta) {
@@ -222,12 +232,66 @@ class PlanetScene extends Phaser.Scene {
     const left  = this.cursors.left.isDown  || this.wasd.A.isDown;
     const right = this.cursors.right.isDown || this.wasd.D.isDown;
 
-    let vx = touchState.ax * WALK_SPEED, vy = touchState.ay * WALK_SPEED;
-    if (up)    vy = -WALK_SPEED;
-    if (down)  vy = WALK_SPEED;
-    if (left)  vx = -WALK_SPEED;
-    if (right) vx = WALK_SPEED;
+    // Sprint with SHIFT
+    const sprinting = this.shiftKey.isDown;
+    const moveSpeed = sprinting ? WALK_SPEED * 1.6 : WALK_SPEED;
+
+    let vx = touchState.ax * moveSpeed, vy = touchState.ay * moveSpeed;
+    if (up)    vy = -moveSpeed;
+    if (down)  vy = moveSpeed;
+    if (left)  vx = -moveSpeed;
+    if (right) vx = moveSpeed;
     this.player.body.setVelocity(vx, vy);
+
+    // Track distance for exploration XP
+    const dx = this.player.x - this.lastPlayerPos.x;
+    const dy = this.player.y - this.lastPlayerPos.y;
+    const moved = Math.sqrt(dx*dx + dy*dy);
+    this.lastPlayerPos = { x: this.player.x, y: this.player.y };
+
+    if (moved > 0.5) {
+      this.distanceTraveled += moved;
+      // Exploration XP every 200px traveled
+      if (this.distanceTraveled >= 200) {
+        this.distanceTraveled -= 200;
+        SpaceState.skills.exploration.totalExp += 3;
+        SpaceState.checkSkillUp('exploration');
+      }
+    }
+
+    // ── Scanner pulse (Q key) ────────────────────────────────────────
+    if (this.scanCooldown > 0) this.scanCooldown -= delta;
+    if (Phaser.Input.Keyboard.JustDown(this.qKey) && this.scanCooldown <= 0) {
+      this.scanCooldown = 3000; // 3 second cooldown
+      const scanRange = 100 + SpaceState.skills.scanning.level * 5;
+
+      // Visual pulse ring
+      const ring = this.add.circle(this.player.x, this.player.y, 10, 0x44aaff, 0.3).setDepth(20);
+      this.tweens.add({
+        targets: ring, scale: scanRange / 10, alpha: 0, duration: 800,
+        onComplete: () => ring.destroy(),
+      });
+
+      // Reveal uncollected resources in range — make them pulse brighter
+      this.resourceNodes.forEach(node => {
+        if (node.collected) return;
+        const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, node.x, node.y);
+        if (d < scanRange) {
+          // Flash the node
+          this.tweens.add({ targets: node.sprite, scale: 2, duration: 200, yoyo: true });
+          if (node.glow) this.tweens.add({ targets: node.glow, alpha: 0.8, scale: 2, duration: 300, yoyo: true });
+        }
+      });
+
+      // Scanning XP
+      SpaceState.skills.scanning.totalExp += 5;
+      SpaceState.checkSkillUp('scanning');
+    }
+
+    // ── Inventory (I key) ────────────────────────────────────────────
+    if (Phaser.Input.Keyboard.JustDown(this.iKey)) {
+      showCargoScreen();
+    }
 
     // Animate astronaut
     if (vx !== 0 || vy !== 0) {
@@ -309,6 +373,9 @@ class PlanetScene extends Phaser.Scene {
       this.shipPromptVisible = false;
     }
 
+    // ── Planet HUD ────────────────────────────────────────────────────
+    this._updatePlanetHUD();
+
     // ── Settlement interaction ────────────────────────────────────────
     if (this.settlement) {
       const sDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.settlementX, this.settlementY);
@@ -335,6 +402,27 @@ class PlanetScene extends Phaser.Scene {
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('FlightScene');
     });
+  }
+
+  _updatePlanetHUD() {
+    const p = SpaceState.player;
+    const maxHp = p.maxHp + SpaceState.getMaxHpBonus();
+    document.getElementById('hp-fill').style.width = (p.hp / maxHp * 100) + '%';
+    document.getElementById('hp-text').textContent = `${Math.floor(p.hp)}/${maxHp}`;
+    document.getElementById('hud-credits').textContent = `Credits: ${p.credits} | Cargo: ${SpaceState.getCargoUsed()}/${SpaceState.getCargoCapacity()}`;
+    document.getElementById('hud-location').textContent = this.planetInfo.name + (this.shiftKey && this.shiftKey.isDown ? ' [SPRINT]' : '') + ' | [Q] Scan | [I] Cargo | [E] Ship';
+
+    // Quest progress
+    if (SpaceState.activeMission) {
+      const sq = STORY_QUESTS[SpaceState.storyProgress];
+      const m = MISSIONS.find(mi => mi.id === SpaceState.activeMission.id);
+      const quest = SpaceState.activeMission.id.startsWith('s') ? sq : m;
+      if (quest) {
+        const prog = SpaceState.activeMission.progress || 0;
+        const goal = quest.goal.count || quest.goal.amount || 1;
+        document.getElementById('hud-location').textContent += ` | Quest: ${prog}/${goal}`;
+      }
+    }
   }
 
   _resourceColor(key) {
