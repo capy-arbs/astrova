@@ -273,6 +273,7 @@ const SpaceState = {
   activeBuff: null, // { effect, amount, duration, timer }
   activeMission: null,  // { id, progress }
   completedMissions: [],
+  storyProgress: 0,    // which story quest step we're on
   totalSoldValue: 0,
   killCount: 0,
   wanted: false,
@@ -349,10 +350,16 @@ const SpaceState = {
     return 1 + tradeBonus + repBonus + shipBonus;
   },
   getPlanetDetectRange() {
-    return 80 + (this.skills.exploration.level - 1) * 2; // base 80, grows with level
+    return 80 + (this.skills.exploration.level - 1) * 2;
   },
   getMinimapRevealRange() {
-    return 200 + (this.skills.scanning.level - 1) * 5; // how far minimap shows detail
+    return 200 + (this.skills.scanning.level - 1) * 8; // reveals more of minimap
+  },
+  getTargetingRange() {
+    return 150 + (this.skills.targeting.level - 1) * 3; // gunnery XP from further hits
+  },
+  getRareResourceChance() {
+    return Math.min(0.5, (this.skills.scanning.level - 1) * 0.008); // bonus rare spawn chance
   },
 
   getShipSpriteKey() {
@@ -420,8 +427,20 @@ const SpaceState = {
     this.player.baseDamage = 1;
     this.player.weapon = 'auto-cannon';
     this.cargo = {};
+    this.items = {};
     this.currentSystem = 'sol';
-    // Keep: skills, credits, discoveredPlanets
+    this.cloaked = false;
+    this.cloakEnergy = 100;
+    this.wanted = false;
+    this.wantedTimer = 0;
+
+    // Death penalty: lose 10% of all skill XP
+    for (const key of Object.keys(this.skills)) {
+      const skill = this.skills[key];
+      skill.totalExp = Math.floor(skill.totalExp * 0.9);
+      skill.level = Math.min(MAX_LEVEL, xpToLevel(skill.totalExp));
+    }
+    // Keep: credits, discoveredPlanets, completedMissions
   },
 
   save() {
@@ -431,7 +450,11 @@ const SpaceState = {
         skills: JSON.parse(JSON.stringify(this.skills)),
         currentSystem: this.currentSystem,
         cargo: { ...this.cargo },
+        items: { ...this.items },
         discoveredPlanets: [...this.discoveredPlanets],
+        storyProgress: this.storyProgress,
+        activeMission: this.activeMission,
+        completedMissions: [...this.completedMissions],
       }));
     } catch (e) {}
   },
@@ -444,7 +467,11 @@ const SpaceState = {
       Object.assign(this.player, data.player);
       this.currentSystem = data.currentSystem || 'sol';
       this.cargo = data.cargo || {};
+      this.items = data.items || {};
       this.discoveredPlanets = data.discoveredPlanets || [];
+      this.storyProgress = data.storyProgress || 0;
+      this.activeMission = data.activeMission || null;
+      this.completedMissions = data.completedMissions || [];
       if (data.skills) {
         for (const key of Object.keys(data.skills)) {
           if (this.skills[key]) this.skills[key] = data.skills[key];
@@ -605,31 +632,82 @@ const TRADE_PRICES = {
 };
 
 // ── Mission board ────────────────────────────────────────────────────────────
+// Story quests — one-time, sequential, drive the narrative
+const STORY_QUESTS = [
+  { id: 's0', name: 'First Steps',
+    desc: 'Land on Terra Nova and gather 3 resources.',
+    goal: { type: 'deliver', resource: 'plant-fiber', count: 3 },
+    reward: { credits: 100 },
+    dialog: {
+      start: ["Commander Reyes here.", "We need supplies. Land on Terra Nova and bring back some Plant Fiber.", "Consider it your first assignment, pilot."],
+      end: ["Good work. You're not completely useless.", "There's been unusual activity near Alpha Centauri. When you're ready, head through the gate."],
+    }},
+  { id: 's1', name: 'The Centauri Signal',
+    desc: 'Travel to Alpha Centauri and discover 3 planets.',
+    goal: { type: 'discover', count: 3 },
+    reward: { credits: 300 },
+    dialog: {
+      start: ["We've detected an anomalous signal from Alpha Centauri.", "Chart at least 3 planets there. We need to know what we're dealing with."],
+      end: ["Interesting data. The signal seems to originate from beyond Kepler space.", "Dr. Patel wants to analyze what you've found."],
+    }},
+  { id: 's2', name: 'Into the Expanse',
+    desc: 'Reach Kepler and salvage the Ancient Vessel derelict.',
+    goal: { type: 'salvage', target: 'Ancient Vessel' },
+    reward: { credits: 500 },
+    dialog: {
+      start: ["The Ancient Vessel in Kepler may hold answers about the signal.", "It's dangerous out there. Make sure your ship is ready."],
+      end: ["These relics... they're not human-made. They're a warning.", "Something is out there, beyond the frontier."],
+    }},
+  { id: 's3', name: 'The Dead Zone',
+    desc: 'Navigate through the Dead Zone. Survive and reach the Nebula gate.',
+    goal: { type: 'reach', system: 'nebula' },
+    reward: { credits: 800 },
+    dialog: {
+      start: ["The Dead Zone is pirate territory. No law, no backup.", "But the gate to the Nebula is on the other side.", "Whatever sent that signal... it's in there somewhere."],
+      end: ["You made it. But the Nebula... it's not what we expected.", "The ships here — they're not human. They're not Kla'ed either."],
+    }},
+  { id: 's4', name: 'First Contact',
+    desc: 'Discover all 4 planets in the Xenith Nebula.',
+    goal: { type: 'discover', count: 4 },
+    reward: { credits: 1500 },
+    dialog: {
+      start: ["These alien vessels... they're ancient. Far older than us.", "Chart every planet in this nebula. We need to understand them."],
+      end: ["Genesis... a planet teeming with life. They were here long before us.", "The signal is coming from deeper still. From The Void."],
+    }},
+  { id: 's5', name: 'Into the Void',
+    desc: 'Enter The Void and land on The Eye.',
+    goal: { type: 'land', planet: 'The Eye' },
+    reward: { credits: 3000 },
+    dialog: {
+      start: ["This is it. The Void.", "Whatever sent that signal is here. At The Eye.", "Be careful, pilot. No one has returned from this place."],
+      end: ["...the signal. It wasn't a warning. It was an invitation.", "They've been waiting. Watching. For millions of years.", "Welcome to the next chapter, pilot. This is just the beginning."],
+    }},
+];
+
+// Repeatable missions — refresh each time you dock
 const MISSIONS = [
-  { id: 'm1', name: 'Patrol Duty',       system: 'sol',
-    desc: 'Destroy 5 hostiles in Sol system.',
-    goal: { type: 'kill', count: 5 }, reward: { credits: 80 }, minCombat: 1 },
-  { id: 'm2', name: 'Resource Run',      system: 'sol',
-    desc: 'Deliver 5 Plant Fiber to the station.',
-    goal: { type: 'deliver', resource: 'plant-fiber', count: 5 }, reward: { credits: 60 }, minTrading: 1 },
-  { id: 'm3', name: 'Ice Harvest',       system: 'alpha-centauri',
-    desc: 'Collect 3 Ice Crystals from Frostheim or Cryo-9.',
-    goal: { type: 'deliver', resource: 'ice-crystal', count: 3 }, reward: { credits: 120 }, minMining: 5 },
-  { id: 'm4', name: 'Deep Space Patrol',  system: 'alpha-centauri',
-    desc: 'Eliminate 8 hostiles in Alpha Centauri.',
-    goal: { type: 'kill', count: 8 }, reward: { credits: 150 }, minCombat: 5 },
-  { id: 'm5', name: 'Relic Recovery',    system: 'kepler',
-    desc: 'Recover 2 Ancient Relics from Kepler planets.',
-    goal: { type: 'deliver', resource: 'ancient-relic', count: 2 }, reward: { credits: 300 }, minExploration: 10 },
-  { id: 'm6', name: 'Kepler Cleansing',  system: 'kepler',
-    desc: 'Destroy 12 hostiles in the Kepler Expanse.',
-    goal: { type: 'kill', count: 12 }, reward: { credits: 400 }, minCombat: 10 },
-  { id: 'm7', name: 'Trade Route',       system: 'sol',
-    desc: 'Sell 200 credits worth of cargo at any station.',
-    goal: { type: 'sell', amount: 200 }, reward: { credits: 100 }, minTrading: 3 },
-  { id: 'm8', name: 'Thermal Extraction', system: 'kepler',
-    desc: 'Deliver 3 Thermal Cores.',
-    goal: { type: 'deliver', resource: 'thermal-core', count: 3 }, reward: { credits: 250 }, minMining: 10 },
+  // Sol
+  { id: 'r1', name: 'Patrol Duty',       system: 'sol',       repeatable: true,
+    desc: 'Destroy 5 hostiles.', goal: { type: 'kill', count: 5 }, reward: { credits: 80 } },
+  { id: 'r2', name: 'Resource Run',      system: 'sol',       repeatable: true,
+    desc: 'Deliver 5 Plant Fiber.', goal: { type: 'deliver', resource: 'plant-fiber', count: 5 }, reward: { credits: 60 } },
+  { id: 'r3', name: 'Trade Route',       system: 'sol',       repeatable: true,
+    desc: 'Sell 200cr worth of cargo.', goal: { type: 'sell', amount: 200 }, reward: { credits: 100 } },
+  // Alpha Centauri
+  { id: 'r4', name: 'Ice Harvest',       system: 'alpha-centauri', repeatable: true,
+    desc: 'Deliver 3 Ice Crystals.', goal: { type: 'deliver', resource: 'ice-crystal', count: 3 }, reward: { credits: 120 } },
+  { id: 'r5', name: 'Deep Patrol',       system: 'alpha-centauri', repeatable: true,
+    desc: 'Eliminate 8 hostiles.', goal: { type: 'kill', count: 8 }, reward: { credits: 150 } },
+  // Kepler
+  { id: 'r6', name: 'Relic Recovery',    system: 'kepler',    repeatable: true,
+    desc: 'Deliver 2 Ancient Relics.', goal: { type: 'deliver', resource: 'ancient-relic', count: 2 }, reward: { credits: 300 } },
+  { id: 'r7', name: 'Frontier Sweep',    system: 'kepler',    repeatable: true,
+    desc: 'Destroy 12 hostiles.', goal: { type: 'kill', count: 12 }, reward: { credits: 400 } },
+  // Outer Rim
+  { id: 'r8', name: 'Pirate Bounty',     system: 'outerrim',  repeatable: true,
+    desc: 'Destroy 10 pirates.', goal: { type: 'kill', count: 10 }, reward: { credits: 500 } },
+  { id: 'r9', name: 'Scrap Collection',  system: 'outerrim',  repeatable: true,
+    desc: 'Deliver 8 Scrap Metal.', goal: { type: 'deliver', resource: 'scrap-metal', count: 8 }, reward: { credits: 350 } },
 ];
 
 // ── Planet settlement data ───────────────────────────────────────────────────

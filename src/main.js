@@ -423,38 +423,70 @@ function _stationEquipTab() {
 
 function _stationMissionsTab() {
   const sys = SpaceState.currentSystem;
-  const available = MISSIONS.filter(m => m.system === sys && !SpaceState.completedMissions.includes(m.id));
   const active = SpaceState.activeMission;
-
   let html = '';
-  if (active) {
+
+  // ── Story Quest ────────────────────────────────
+  const storyIdx = SpaceState.storyProgress;
+  if (storyIdx < STORY_QUESTS.length) {
+    const sq = STORY_QUESTS[storyIdx];
+    const isStoryActive = active && active.id === sq.id;
+
+    html += `<div style="font-size:13px;color:#ffcc44;margin-bottom:6px;">STORY</div>`;
+    if (isStoryActive) {
+      const prog = active.progress || 0;
+      const goal = sq.goal.count || 1;
+      html += `<div style="background:#1a1a1a;border:1px solid #554422;border-radius:6px;padding:8px;margin-bottom:10px;">
+        <div style="font-size:12px;color:#ffcc44;">${sq.name}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:3px;">${sq.desc}</div>
+        <div style="font-size:10px;color:#888;margin-top:3px;">Progress: ${prog}/${goal}</div>
+        <div style="font-size:10px;color:#44cc44;margin-top:2px;">Reward: ${sq.reward.credits}cr</div>
+        ${prog >= goal ?
+          `<button onclick="completeStoryQuest()" style="margin-top:6px;width:100%;background:#1a2a1a;color:#ffcc44;border:1px solid #ffcc44;border-radius:4px;padding:4px;cursor:pointer;font-size:11px;">Complete Story Quest</button>` : ''}
+      </div>`;
+    } else if (!active) {
+      html += `<div style="background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:8px;margin-bottom:10px;">
+        <div style="font-size:12px;color:#ffcc44;">${sq.name}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:3px;">${sq.desc}</div>
+        <div style="font-size:10px;color:#44cc44;margin-top:2px;">Reward: ${sq.reward.credits}cr</div>
+        <button onclick="acceptStoryQuest()" style="margin-top:6px;width:100%;background:#1a1a2a;color:#ffcc44;border:1px solid #886622;border-radius:4px;padding:4px;cursor:pointer;font-size:11px;">Accept</button>
+      </div>`;
+    }
+  } else {
+    html += `<div style="color:#554422;font-size:11px;margin-bottom:10px;text-align:center;">Story complete — for now...</div>`;
+  }
+
+  // ── Active Mission ────────────────────────────
+  if (active && !active.id.startsWith('s')) {
     const mission = MISSIONS.find(m => m.id === active.id);
     if (mission) {
+      const prog = active.progress || 0;
+      const goal = mission.goal.count || mission.goal.amount;
       html += `<div style="background:#1a1a2a;border:1px solid #445;border-radius:6px;padding:8px;margin-bottom:10px;">
-        <div style="font-size:13px;color:#ffcc44;">ACTIVE: ${mission.name}</div>
-        <div style="font-size:11px;color:#aaa;margin-top:4px;">${mission.desc}</div>
-        <div style="font-size:11px;color:#888;margin-top:4px;">Progress: ${active.progress || 0}/${mission.goal.count || mission.goal.amount}</div>
-        <div style="font-size:11px;color:#44cc44;margin-top:2px;">Reward: ${mission.reward.credits}cr</div>
-        ${(active.progress || 0) >= (mission.goal.count || mission.goal.amount) ?
-          `<button onclick="completeMission()" style="margin-top:6px;width:100%;background:#1a2a1a;color:#44ff44;border:1px solid #44ff44;border-radius:4px;padding:4px;cursor:pointer;font-size:12px;">Complete Mission</button>` :
+        <div style="font-size:12px;color:#6699ff;">ACTIVE: ${mission.name}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:3px;">${mission.desc}</div>
+        <div style="font-size:10px;color:#888;margin-top:3px;">Progress: ${prog}/${goal}</div>
+        ${prog >= goal ?
+          `<button onclick="completeMission()" style="margin-top:6px;width:100%;background:#1a2a1a;color:#44ff44;border:1px solid #44ff44;border-radius:4px;padding:4px;cursor:pointer;font-size:11px;">Complete</button>` :
           `<button onclick="abandonMission()" style="margin-top:6px;width:100%;background:#2a1a1a;color:#aa4444;border:1px solid #aa4444;border-radius:4px;padding:3px;cursor:pointer;font-size:10px;">Abandon</button>`}
       </div>`;
     }
   }
 
-  if (available.length === 0 && !active) {
-    html += '<div style="color:#666;font-size:12px;text-align:center;padding:20px;">No missions available in this system.</div>';
-  } else if (!active) {
-    html += available.map(m => {
-      return `<div style="padding:6px 0;border-bottom:1px solid #1a1a22;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:12px;color:#aabbcc;">${m.name}</span>
-          <button onclick="acceptMission('${m.id}')" style="background:#1a1a2a;color:#6699ff;border:1px solid #6699ff;border-radius:3px;padding:2px 8px;cursor:pointer;font-size:10px;">Accept</button>
-        </div>
-        <div style="font-size:10px;color:#888;margin-top:2px;">${m.desc}</div>
-        <div style="font-size:10px;color:#44cc44;margin-top:2px;">Reward: ${m.reward.credits}cr</div>
-      </div>`;
-    }).join('');
+  // ── Repeatable Missions ────────────────────────
+  const available = MISSIONS.filter(m => m.system === sys);
+  html += `<div style="font-size:13px;color:#6699ff;margin-bottom:6px;margin-top:4px;">CONTRACTS</div>`;
+  if (available.length === 0) {
+    html += '<div style="color:#555;font-size:11px;">No contracts in this system.</div>';
+  } else {
+    const canAccept = !active || active.id.startsWith('s');
+    html += available.map(m => `<div style="padding:4px 0;border-bottom:1px solid #1a1a22;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11px;color:#aabbcc;">${m.name}</span>
+        <button onclick="acceptMission('${m.id}')" ${!canAccept?'disabled':''} style="background:${canAccept?'#1a1a2a':'#181818'};color:${canAccept?'#6699ff':'#444'};border:1px solid ${canAccept?'#6699ff':'#222'};border-radius:3px;padding:2px 6px;cursor:${canAccept?'pointer':'default'};font-size:10px;">Accept</button>
+      </div>
+      <div style="font-size:9px;color:#666;">${m.desc} — ${m.reward.credits}cr</div>
+    </div>`).join('');
   }
 
   return html;
@@ -561,6 +593,24 @@ function buyUpgrade(idx) {
   if (up.stat === 'maxHp') SpaceState.player.hp = SpaceState.player.maxHp;
   if (up.stat === 'maxShield') SpaceState.player.shield = SpaceState.player.maxShield;
 
+  _renderStation();
+}
+
+function acceptStoryQuest() {
+  const sq = STORY_QUESTS[SpaceState.storyProgress];
+  if (!sq) return;
+  SpaceState.activeMission = { id: sq.id, progress: 0 };
+  _renderStation();
+}
+
+function completeStoryQuest() {
+  const sq = STORY_QUESTS[SpaceState.storyProgress];
+  if (!sq) return;
+  SpaceState.player.credits += sq.reward.credits;
+  SpaceState.skills.reputation.totalExp += 30;
+  SpaceState.checkSkillUp('reputation');
+  SpaceState.storyProgress++;
+  SpaceState.activeMission = null;
   _renderStation();
 }
 

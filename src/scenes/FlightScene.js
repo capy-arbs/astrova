@@ -77,6 +77,22 @@ class FlightScene extends Phaser.Scene {
     this.bgStars  = this.add.tileSprite(0, 0, WORLD_SIZE, WORLD_SIZE, 'bg-stars').setOrigin(0).setScrollFactor(0).setDepth(-2);
     this.bgStars2 = this.add.tileSprite(0, 0, WORLD_SIZE, WORLD_SIZE, 'bg-stars2').setOrigin(0).setScrollFactor(0).setDepth(-1);
 
+    // Tint backgrounds by system for visual variety
+    const bgTints = {
+      'sol': null,
+      'alpha-centauri': 0xaabbff,
+      'kepler': 0xffccaa,
+      'deadzone': 0x998877,
+      'outerrim': 0xcc9966,
+      'nebula': 0xbb88ff,
+      'void': 0x664488,
+    };
+    const tint = bgTints[SpaceState.currentSystem];
+    if (tint) {
+      this.bgStars.setTint(tint);
+      this.bgStars2.setTint(tint);
+    }
+
     // ── Planets ──────────────────────────────────────────────────────
     this.planetData = sys.planets;
     this.planetSprites = this.planetData.map(p => {
@@ -403,6 +419,14 @@ class FlightScene extends Phaser.Scene {
           this._domFloat(this.player.x, this.player.y - 30, `Discovered ${this.nearPlanet.name}! +50 XP`, '#ddaa44');
           if (g > 0) this._domFloat(this.player.x, this.player.y - 50, `Exploration LV${SpaceState.skills.exploration.level}!`, '#ffee44');
 
+          // Story quest: discover planets
+          if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
+            const sq = STORY_QUESTS[SpaceState.storyProgress];
+            if (sq && sq.goal.type === 'discover') {
+              SpaceState.activeMission.progress = (SpaceState.activeMission.progress || 0) + 1;
+            }
+          }
+
           // Check exploration bounty
           const bounty = EXPLORATION_BOUNTIES[SpaceState.currentSystem];
           if (bounty && bounty.required.every(p => SpaceState.discoveredPlanets.includes(p))) {
@@ -448,6 +472,15 @@ class FlightScene extends Phaser.Scene {
           SpaceState.checkSkillUp('exploration');
           SpaceState.checkSkillUp('scanning');
           this._domFloat(obj.x, obj.y - 40, 'Salvaged!', '#ddaa44');
+
+          // Story quest: salvage specific derelict
+          if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
+            const sq = STORY_QUESTS[SpaceState.storyProgress];
+            if (sq && sq.goal.type === 'salvage' && sq.goal.target === obj.name) {
+              SpaceState.activeMission.progress = 1;
+              this._domFloat(obj.x, obj.y - 60, 'Story objective complete!', '#ffcc44', 2000);
+            }
+          }
         }
       } else {
         obj._prompted = false;
@@ -622,6 +655,15 @@ class FlightScene extends Phaser.Scene {
     // Warp Drive XP
     SpaceState.skills.warpDrive.totalExp += 30;
     SpaceState.checkSkillUp('warpDrive');
+
+    // Story quest: reach system
+    if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
+      const sq = STORY_QUESTS[SpaceState.storyProgress];
+      if (sq && sq.goal.type === 'reach' && sq.goal.system === targetSystem) {
+        SpaceState.activeMission.progress = 1;
+        this._domFloat(this.player.x, this.player.y - 30, 'Story objective reached!', '#ffcc44', 2000);
+      }
+    }
 
     SpaceState.save();
     this.cameras.main.fadeOut(800, 255, 255, 255); // white flash for hyperspace
@@ -1054,7 +1096,7 @@ class FlightScene extends Phaser.Scene {
     document.getElementById('hp-text').textContent = `${Math.floor(p.hp)}/${maxHp}`;
     document.getElementById('shield-fill').style.width = (Math.floor(p.shield) / maxSh * 100) + '%';
     document.getElementById('shield-text').textContent = `${Math.floor(p.shield)}/${maxSh}`;
-    document.getElementById('hud-credits').textContent = `Credits: ${p.credits}`;
+    document.getElementById('hud-credits').textContent = `Credits: ${p.credits} | Cargo: ${SpaceState.getCargoUsed()}/${SpaceState.getCargoCapacity()}`;
 
     // Cloak bar (only for smuggler)
     let cloakEl = document.getElementById('hud-cloak');

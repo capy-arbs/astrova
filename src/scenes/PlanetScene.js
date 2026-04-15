@@ -40,14 +40,76 @@ class PlanetScene extends Phaser.Scene {
     gfx.fillStyle(pType.ground);
     gfx.fillRect(0, 0, PLANET_SIZE, PLANET_SIZE);
 
-    // Terrain variation — scatter darker patches
+    // Terrain variation — darker patches
     gfx.fillStyle(pType.accent);
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 50; i++) {
       const rx = Phaser.Math.Between(0, PLANET_SIZE - 40);
       const ry = Phaser.Math.Between(0, PLANET_SIZE - 40);
       const rw = Phaser.Math.Between(20, 80);
       const rh = Phaser.Math.Between(20, 60);
       gfx.fillRoundedRect(rx, ry, rw, rh, 4);
+    }
+
+    // Terrain features based on planet type
+    if (pType.name === 'Terran') {
+      // Trees / vegetation
+      for (let i = 0; i < 20; i++) {
+        const tx = Phaser.Math.Between(30, PLANET_SIZE - 30);
+        const ty = Phaser.Math.Between(30, PLANET_SIZE - 30);
+        gfx.fillStyle(0x226622); gfx.fillCircle(tx, ty, Phaser.Math.Between(6, 12));
+        gfx.fillStyle(0x33aa33); gfx.fillCircle(tx, ty - 2, Phaser.Math.Between(4, 8));
+      }
+      // Water pools
+      for (let i = 0; i < 5; i++) {
+        const wx = Phaser.Math.Between(50, PLANET_SIZE - 50);
+        const wy = Phaser.Math.Between(50, PLANET_SIZE - 50);
+        gfx.fillStyle(0x2266aa, 0.6); gfx.fillEllipse(wx, wy, Phaser.Math.Between(30, 60), Phaser.Math.Between(15, 30));
+      }
+    } else if (pType.name === 'Ice') {
+      // Ice formations / crystals
+      for (let i = 0; i < 25; i++) {
+        const ix = Phaser.Math.Between(20, PLANET_SIZE - 20);
+        const iy = Phaser.Math.Between(20, PLANET_SIZE - 20);
+        const size = Phaser.Math.Between(3, 10);
+        gfx.fillStyle(0xccddff, 0.7);
+        gfx.fillTriangle(ix, iy - size * 2, ix - size, iy, ix + size, iy);
+      }
+      // Snow drifts
+      for (let i = 0; i < 8; i++) {
+        const sx = Phaser.Math.Between(0, PLANET_SIZE);
+        const sy = Phaser.Math.Between(0, PLANET_SIZE);
+        gfx.fillStyle(0xddeeff, 0.3); gfx.fillEllipse(sx, sy, Phaser.Math.Between(40, 100), Phaser.Math.Between(20, 40));
+      }
+    } else if (pType.name === 'Lava') {
+      // Lava rivers
+      for (let i = 0; i < 6; i++) {
+        const lx = Phaser.Math.Between(0, PLANET_SIZE);
+        const ly = Phaser.Math.Between(0, PLANET_SIZE);
+        gfx.lineStyle(Phaser.Math.Between(3, 8), 0xff4400, 0.6);
+        gfx.lineBetween(lx, ly, lx + Phaser.Math.Between(-100, 100), ly + Phaser.Math.Between(-100, 100));
+      }
+      // Volcanic vents
+      for (let i = 0; i < 10; i++) {
+        const vx = Phaser.Math.Between(30, PLANET_SIZE - 30);
+        const vy = Phaser.Math.Between(30, PLANET_SIZE - 30);
+        gfx.fillStyle(0x331100); gfx.fillCircle(vx, vy, Phaser.Math.Between(4, 8));
+        gfx.fillStyle(0xff6600, 0.4); gfx.fillCircle(vx, vy, Phaser.Math.Between(2, 4));
+      }
+    } else {
+      // Barren — craters and rocks
+      for (let i = 0; i < 15; i++) {
+        const cx = Phaser.Math.Between(30, PLANET_SIZE - 30);
+        const cy = Phaser.Math.Between(30, PLANET_SIZE - 30);
+        const cr = Phaser.Math.Between(8, 25);
+        gfx.lineStyle(1, 0x555544, 0.5); gfx.strokeCircle(cx, cy, cr);
+        gfx.fillStyle(0x444433, 0.3); gfx.fillCircle(cx, cy, cr - 2);
+      }
+      // Scattered rocks
+      for (let i = 0; i < 20; i++) {
+        const rx = Phaser.Math.Between(10, PLANET_SIZE - 10);
+        const ry = Phaser.Math.Between(10, PLANET_SIZE - 10);
+        gfx.fillStyle(0x666655); gfx.fillCircle(rx, ry, Phaser.Math.Between(2, 5));
+      }
     }
 
     // ── World bounds ─────────────────────────────────────────────────
@@ -140,6 +202,14 @@ class PlanetScene extends Phaser.Scene {
       D: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
     this.eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+
+    // ── Story quest: land on planet ─────────────────────────────────
+    if (SpaceState.activeMission && SpaceState.activeMission.id.startsWith('s')) {
+      const sq = STORY_QUESTS[SpaceState.storyProgress];
+      if (sq && sq.goal.type === 'land' && sq.goal.planet === this.planetInfo.name) {
+        SpaceState.activeMission.progress = 1;
+      }
+    }
 
     // ── HUD update ───────────────────────────────────────────────────
     document.getElementById('hud-location').textContent = this.planetInfo.name + ' (Surface)';
