@@ -153,6 +153,7 @@ const STAR_SYSTEMS = {
 // ── Ship definitions ─────────────────────────────────────────────────────────
 const _SP = 'assets/sprites/';
 const _VM = _SP + 'Foozle_2DS0011_Void_MainShip/';
+const _F1 = _SP + "Foozle_2DS0012_Void_EnemyFleet_1/Kla'ed/Base/PNGs/";
 const _F2 = _SP + 'Foozle_2DS0013_Void_EnemyFleet_2/Nairan/Designs - Base/PNGs/';
 const _F3 = _SP + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/';
 
@@ -249,8 +250,21 @@ const SHIPS = {
   'nautolan-carrier': {
     name: 'Carrier',         spriteKey: 'ship-nautolan-carrier', size: 128,
     hp: 350, shield: 250, speedBonus: -30, cost: 15000, pilotReq: 50,
-    drones: 4, droneRange: 250,
+    drones: 4, droneRange: 250, cargo: 30,
     path: _F3 + 'Nautolan Ship - Dreadnought - Base.png',
+  },
+  // ── Endgame capitals ─────────────
+  'klaed-dreadnought': {
+    name: 'Dreadnought',    spriteKey: 'ship-klaed-dn', size: 128,
+    hp: 800, shield: 400, speedBonus: -45, cost: 30000, pilotReq: 60,
+    cargo: 30,
+    path: _F1 + "Kla'ed - Dreadnought - Base.png",
+  },
+  'klaed-supercarrier': {
+    name: 'Super-Carrier',  spriteKey: 'ship-klaed-bc', size: 128,
+    hp: 500, shield: 350, speedBonus: -40, cost: 50000, pilotReq: 70,
+    drones: 6, droneRange: 350, cargo: 40,
+    path: _F1 + "Kla'ed - Battlecruiser - Base.png",
   },
 };
 
@@ -404,10 +418,15 @@ const SpaceState = {
 
   getShipScale() {
     const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
-    // Battleship/carrier are the biggest
+    // Endgame capitals — massive presence
+    if (shipDef === SHIPS['klaed-dreadnought']) return 0.9;
+    if (shipDef === SHIPS['klaed-supercarrier']) return 0.85;
+    // Large ships
     if (shipDef === SHIPS['nairan-dreadnought'] || shipDef === SHIPS['nautolan-carrier']) return 0.7;
     if (shipDef.size === 128) return 0.6;
+    // Medium ships
     if (shipDef.size === 64) return 0.55;
+    // Starter (48px)
     return 0.5;
   },
 
