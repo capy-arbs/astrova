@@ -331,12 +331,13 @@ class FlightScene extends Phaser.Scene {
       }
     }
 
-    // Smooth rotation
+    // Smooth rotation — turn rate varies by ship
+    const turnRate = SpaceState.getTurnRate();
     const targetDeg = Phaser.Math.RadToDeg(this.facingAngle) + 90;
     let diff = targetDeg - this.player.angle;
     while (diff > 180) diff -= 360;
     while (diff < -180) diff += 360;
-    this.player.setAngle(this.player.angle + diff * 0.12);
+    this.player.setAngle(this.player.angle + diff * turnRate);
 
     this.engine.setPosition(this.player.x, this.player.y);
     this.engine.setAngle(this.player.angle);
