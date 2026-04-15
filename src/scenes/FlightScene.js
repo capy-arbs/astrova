@@ -203,6 +203,8 @@ class FlightScene extends Phaser.Scene {
     this.physics.add.overlap(this.bullets, this.police, this._bulletHitPolice, null, this);
     this.physics.add.overlap(this.player, this.police, this._policeContactPlayer, null, this);
     this.physics.add.overlap(this.enemyBullets, this.player, this._enemyBulletHitPlayer, null, this);
+    // Enemy bullets can hit drones too
+    this._droneEnemyBulletOverlap = null; // set after drones spawn
 
     // ── Input ────────────────────────────────────────────────────────
     this.cursors  = this.input.keyboard.createCursorKeys();
@@ -916,6 +918,27 @@ class FlightScene extends Phaser.Scene {
     if (p.hp <= 0) this._gameOver();
   }
 
+  _enemyBulletHitDrone(bullet, drone) {
+    if (!bullet.active || !drone.active) return;
+    bullet.destroy();
+
+    let droneHp = drone.getData('hp') - 1;
+    drone.setData('hp', droneHp);
+    drone.setTint(0xff8888);
+    this.time.delayedCall(100, () => { if (drone.active) drone.setTint(0x88ccff); });
+
+    if (droneHp <= 0) {
+      this.tweens.add({
+        targets: drone, alpha: 0, scale: 0.05, duration: 150,
+        onComplete: () => {
+          drone.destroy();
+          this.drones = this.drones.filter(d => d.active);
+          this._domFloat(drone.x, drone.y, 'Drone destroyed!', '#ff6644');
+        },
+      });
+    }
+  }
+
   _enemyBulletHitPlayer(player, bullet) {
     if (this.isInvincible) { bullet.destroy(); return; }
     bullet.destroy();
@@ -1110,6 +1133,7 @@ class FlightScene extends Phaser.Scene {
     drone.setData('hp', 8); // drones have 8 HP
     this.drones.push(drone);
     this.physics.add.overlap(drone, this.enemies, (d, e) => this._droneHitEnemy(d, e));
+    this.physics.add.overlap(this.enemyBullets, drone, (b, d) => this._enemyBulletHitDrone(b, d));
   }
 
   _spawnTraders(count) {
