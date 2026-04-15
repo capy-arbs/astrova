@@ -161,6 +161,10 @@ class FlightScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this._spawnEnemies(sys.enemyCount || 20);
 
+    // ── Neutral trader ships ────────────────────────────────────────
+    this.traders = this.physics.add.group();
+    this._spawnTraders(sys.traders || 0);
+
     // ── Police patrols ─────────────────────────────────────────────
     this.police = this.physics.add.group();
     this._spawnPolice();
@@ -387,6 +391,16 @@ class FlightScene extends Phaser.Scene {
           const g = SpaceState.checkSkillUp('exploration');
           this._domFloat(this.player.x, this.player.y - 30, `Discovered ${this.nearPlanet.name}! +50 XP`, '#ddaa44');
           if (g > 0) this._domFloat(this.player.x, this.player.y - 50, `Exploration LV${SpaceState.skills.exploration.level}!`, '#ffee44');
+
+          // Check exploration bounty
+          const bounty = EXPLORATION_BOUNTIES[SpaceState.currentSystem];
+          if (bounty && bounty.required.every(p => SpaceState.discoveredPlanets.includes(p))) {
+            if (!SpaceState.completedMissions.includes('bounty-' + SpaceState.currentSystem)) {
+              SpaceState.completedMissions.push('bounty-' + SpaceState.currentSystem);
+              SpaceState.player.credits += bounty.reward;
+              this._domFloat(this.player.x, this.player.y - 70, `${bounty.name} complete! +${bounty.reward}cr`, '#ffcc44', 3000);
+            }
+          }
         }
         this._landOnPlanet(this.nearPlanet);
       } else if (this.stationX && Phaser.Math.Distance.Between(this.player.x, this.player.y, this.stationX, this.stationY) < 50) {
@@ -471,6 +485,38 @@ class FlightScene extends Phaser.Scene {
         this.engine.setAlpha(1);
       }
     }
+
+    // ── Trader AI (peaceful, fly between planets) ──────────────────
+    this.traders.children.each(t => {
+      if (!t.active) return;
+      const target = t.getData('target');
+      if (target) {
+        const dist = Phaser.Math.Distance.Between(t.x, t.y, target.x, target.y);
+        if (dist < 30) {
+          // Reached destination, pick new one
+          t.setData('target', this._randomPlanetPos());
+          t.setData('waitTimer', Phaser.Math.Between(3000, 8000));
+        } else if (t.getData('waitTimer') > 0) {
+          t.setData('waitTimer', t.getData('waitTimer') - delta);
+          t.setVelocity(0, 0);
+        } else {
+          const angle = Phaser.Math.Angle.Between(t.x, t.y, target.x, target.y);
+          t.setVelocity(Math.cos(angle) * 40, Math.sin(angle) * 40);
+          t.setAngle(Phaser.Math.RadToDeg(angle) + 90);
+        }
+      }
+
+      // Hail trader when close
+      const playerDist = Phaser.Math.Distance.Between(t.x, t.y, this.player.x, this.player.y);
+      if (playerDist < 50 && !t.getData('hailed')) {
+        document.getElementById('hud-location').textContent = 'Trader — [E] to hail';
+        if (ePressed) {
+          t.setData('hailed', true);
+          this.time.delayedCall(5000, () => t.setData('hailed', false));
+          showTraderScreen(t);
+        }
+      }
+    });
 
     // ── Police AI + scanning ─────────────────────────────────────────
     if (SpaceState.wanted && SpaceState.wantedTimer > 0) {
@@ -791,6 +837,36 @@ class FlightScene extends Phaser.Scene {
     }
   }
 
+  _spawnTraders(count) {
+    for (let i = 0; i < count; i++) {
+      const x = Phaser.Math.Between(300, WORLD_SIZE - 300);
+      const y = Phaser.Math.Between(300, WORLD_SIZE - 300);
+      const t = this.traders.create(x, y, 'police'); // reuse ship sprite with different tint
+      t.setScale(0.4).setDepth(4).setTint(0x44cc44); // green tint = friendly
+      t.setData('target', this._randomPlanetPos());
+      t.setData('waitTimer', 0);
+      t.setData('hailed', false);
+      t.setData('goods', this._randomTraderGoods());
+    }
+  }
+
+  _randomPlanetPos() {
+    const planets = STAR_SYSTEMS[SpaceState.currentSystem].planets;
+    const p = planets[Phaser.Math.Between(0, planets.length - 1)];
+    return { x: p.x, y: p.y };
+  }
+
+  _randomTraderGoods() {
+    const keys = Object.keys(RESOURCE_DEFS);
+    const goods = [];
+    for (let i = 0; i < 3; i++) {
+      const key = keys[Phaser.Math.Between(0, keys.length - 1)];
+      const def = RESOURCE_DEFS[key];
+      goods.push({ key, name: def.name, color: def.color, price: Math.floor(def.value * 0.8), qty: Phaser.Math.Between(2, 6) });
+    }
+    return goods;
+  }
+
   _spawnPolice() {
     const count = SpaceState.currentSystem === 'sol' ? 4 : SpaceState.currentSystem === 'alpha-centauri' ? 3 : 2;
     for (let i = 0; i < count; i++) {
@@ -890,6 +966,13 @@ class FlightScene extends Phaser.Scene {
       if (!e.active) return;
       mm.fillStyle(0xff4444);
       mm.fillCircle(mmX + e.x * scale, mmY + e.y * scale, 1);
+    });
+
+    // Traders (green)
+    this.traders.children.each(t => {
+      if (!t.active) return;
+      mm.fillStyle(0x44cc44);
+      mm.fillCircle(mmX + t.x * scale, mmY + t.y * scale, 1.5);
     });
 
     // Police

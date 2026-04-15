@@ -40,6 +40,7 @@ const STAR_SYSTEMS = {
     jumpGates: [
       { x: 2900, y: 1500, target: 'alpha-centauri', name: 'Alpha Centauri Gate' },
     ],
+    traders: 3,
   },
   'alpha-centauri': {
     name: 'Alpha Centauri',
@@ -57,6 +58,7 @@ const STAR_SYSTEMS = {
       { x: 100, y: 1500, target: 'sol', name: 'Sol Gate' },
       { x: 1500, y: 100, target: 'kepler', name: 'Kepler Gate' },
     ],
+    traders: 4,
   },
   'kepler': {
     name: 'Kepler Expanse',
@@ -72,6 +74,7 @@ const STAR_SYSTEMS = {
     jumpGates: [
       { x: 1500, y: 2900, target: 'alpha-centauri', name: 'Alpha Centauri Gate' },
     ],
+    traders: 2,
   },
 };
 
@@ -120,9 +123,26 @@ const SHIPS = {
   'nairan-smuggler': {
     name: 'Smuggler',        spriteKey: 'ship-nairan-torpedo', size: 64,
     hp: 90, shield: 60, speedBonus: 20, cost: 1500, pilotReq: 15,
-    scanRange: 25, // police must be within 25px to scan (vs 80 default)
-    cloak: true,   // can activate cloaking device
+    scanRange: 25, cloak: true, cargo: 20,
     path: _F2 + 'Nairan - Torpedo Ship - Base.png',
+  },
+  'nautolan-miner': {
+    name: 'Mining Barge',    spriteKey: 'ship-nautolan-bomber', size: 64,
+    hp: 160, shield: 80, speedBonus: -15, cost: 2000, pilotReq: 10,
+    miningBonus: 3, cargo: 40,
+    path: _F3 + 'Nautolan Ship - Bomber - Base.png',
+  },
+  'nairan-hauler': {
+    name: 'Trade Hauler',    spriteKey: 'ship-nairan-support', size: 64,
+    hp: 140, shield: 100, speedBonus: -10, cost: 3000, pilotReq: 12,
+    cargo: 60, tradeBonus: 0.15,
+    path: _F2 + 'Nairan - Support Ship - Base.png',
+  },
+  'nairan-interceptor': {
+    name: 'Interceptor',     spriteKey: 'ship-nairan-interceptor', size: 64,
+    hp: 60, shield: 40, speedBonus: 40, cost: 4000, pilotReq: 20,
+    cargo: 10,
+    path: _F2 + 'Nairan - Scout - Base.png',
   },
   'nairan-dreadnought': {
     name: 'Battleship',      spriteKey: 'ship-nairan-dn', size: 128,
@@ -233,12 +253,28 @@ const SpaceState = {
     return 1 + Math.floor((this.skills.droneCommand.level - 1) * 0.2);
   },
   getMiningBonus() {
-    return 1 + Math.floor(this.skills.mining.level / 10);
+    const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
+    const shipBonus = shipDef.miningBonus || 0;
+    return 1 + Math.floor(this.skills.mining.level / 10) + shipBonus;
+  },
+  getCargoCapacity() {
+    const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
+    return shipDef.cargo || 25; // default 25
+  },
+  getCargoUsed() {
+    let total = 0;
+    for (const k of Object.keys(this.cargo)) total += this.cargo[k];
+    return total;
+  },
+  isCargoFull() {
+    return this.getCargoUsed() >= this.getCargoCapacity();
   },
   getSellMultiplier() {
     const tradeBonus = Math.min(0.3, (this.skills.trading.level - 1) * 0.006);
     const repBonus = Math.min(0.2, (this.skills.reputation.level - 1) * 0.004);
-    return 1 + tradeBonus + repBonus; // up to 1.5x sell price
+    const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
+    const shipBonus = shipDef.tradeBonus || 0;
+    return 1 + tradeBonus + repBonus + shipBonus;
   },
   getPlanetDetectRange() {
     return 80 + (this.skills.exploration.level - 1) * 2; // base 80, grows with level
@@ -552,6 +588,29 @@ const CONTRABAND = {
   'black-market-arms': { name: 'Black Market Arms', color: '#ff6644', value: 120 },
   'smuggled-relics':   { name: 'Smuggled Relics',   color: '#ffaa44', value: 150 },
   'restricted-data':   { name: 'Restricted Data',   color: '#cc44ff', value: 200 },
+};
+
+// ── Trade goods (buy at stations, sell at other stations) ────────────────────
+const TRADE_GOODS = {
+  'electronics':    { name: 'Electronics',    color: '#44aaff', buyAt: 'sol',            buyPrice: 40,  sellBonus: { 'alpha-centauri': 1.8, 'kepler': 2.2 } },
+  'medical-supply': { name: 'Medical Supply', color: '#44ff88', buyAt: 'sol',            buyPrice: 30,  sellBonus: { 'alpha-centauri': 1.5, 'kepler': 2.0 } },
+  'luxury-goods':   { name: 'Luxury Goods',   color: '#ffaa44', buyAt: 'alpha-centauri', buyPrice: 60,  sellBonus: { 'sol': 1.6, 'kepler': 1.4 } },
+  'exotic-matter':  { name: 'Exotic Matter',  color: '#cc44ff', buyAt: 'kepler',         buyPrice: 100, sellBonus: { 'sol': 2.5, 'alpha-centauri': 2.0 } },
+  'fuel-cells':     { name: 'Fuel Cells',     color: '#ffcc22', buyAt: 'alpha-centauri', buyPrice: 25,  sellBonus: { 'sol': 1.3, 'kepler': 1.7 } },
+};
+
+// ── Rare resources (chance to spawn on planets) ──────────────────────────────
+const RARE_RESOURCES = {
+  'quantum-crystal':   { name: 'Quantum Crystal',   color: '#ff44ff', value: 100, spawnChance: 0.15 },
+  'void-fragment':     { name: 'Void Fragment',      color: '#4444ff', value: 150, spawnChance: 0.10 },
+  'stellar-ember':     { name: 'Stellar Ember',      color: '#ffaa00', value: 200, spawnChance: 0.05 },
+};
+
+// ── Exploration bounties ─────────────────────────────────────────────────────
+const EXPLORATION_BOUNTIES = {
+  'sol':            { name: 'Chart Sol System',       reward: 200, required: ['Terra Nova', 'Glacius', 'Inferno', 'Dust Rock', 'New Eden'] },
+  'alpha-centauri': { name: 'Chart Alpha Centauri',   reward: 400, required: ['Frostheim', 'Ashfall', 'Pyroclast', 'Haven', 'Cryo-9', 'Void Scar'] },
+  'kepler':         { name: 'Chart Kepler Expanse',   reward: 600, required: ['Hellion', 'Crucible', 'Graveyard', 'Deep Freeze', 'Oasis'] },
 };
 
 // ── Ship upgrade definitions ─────────────────────────────────────────────────

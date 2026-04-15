@@ -310,19 +310,34 @@ function _stationTradeTab() {
     sellHtml = '<div style="color:#666;font-size:12px;">Cargo hold empty</div>';
   } else {
     sellHtml = cargoKeys.map(key => {
-      const def = RESOURCE_DEFS[key] || CONTRABAND[key] || { name: key, color: '#fff', value: 0 };
+      const def = RESOURCE_DEFS[key] || CONTRABAND[key];
+      const tradeGood = TRADE_GOODS[key];
+      const displayDef = def || tradeGood || { name: key, color: '#fff', value: 0 };
       const isContraband = !!CONTRABAND[key];
       const isBonus = tradePrices.bonus.includes(key);
-      const price = Math.floor(def.value * mult * tradePrices.sell * (isBonus ? 1.5 : 1));
+      const isTradeGood = !!tradeGood;
+      let price;
+      if (tradeGood) {
+        const sysM = tradeGood.sellBonus[sys] || 1.0;
+        price = Math.floor(tradeGood.buyPrice * sysM * mult);
+      } else {
+        price = Math.floor((displayDef.value || 0) * mult * tradePrices.sell * (isBonus ? 1.5 : 1));
+      }
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
-        <span style="color:${def.color};font-size:12px;">${def.name} x${cargo[key]} ${isContraband ? '<span style="color:#ff4444;font-size:9px;">CONTRABAND</span>' : isBonus ? '<span style="color:#ffcc44;font-size:9px;">HIGH DEMAND</span>' : ''}</span>
+        <span style="color:${displayDef.color};font-size:12px;">${displayDef.name} x${cargo[key]} ${isContraband ? '<span style="color:#ff4444;font-size:9px;">CONTRABAND</span>' : isTradeGood ? '<span style="color:#4488ff;font-size:9px;">TRADE GOOD</span>' : isBonus ? '<span style="color:#ffcc44;font-size:9px;">HIGH DEMAND</span>' : ''}</span>
         <button onclick="sellCargo('${key}')" style="background:#1a2a1a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">${price}cr</button>
       </div>`;
     }).join('');
   }
 
   const sellAllValue = cargoKeys.reduce((s, k) => {
-    const def = RESOURCE_DEFS[k] || CONTRABAND[k]; if (!def) return s;
+    const def = RESOURCE_DEFS[k] || CONTRABAND[k] || RARE_RESOURCES[k];
+    const tg = TRADE_GOODS[k];
+    if (!def && !tg) return s;
+    if (tg) {
+      const sysM = tg.sellBonus[sys] || 1.0;
+      return s + cargo[k] * Math.floor(tg.buyPrice * sysM * mult);
+    }
     const isBonus = tradePrices.bonus.includes(k);
     return s + cargo[k] * Math.floor(def.value * mult * tradePrices.sell * (isBonus ? 1.5 : 1));
   }, 0);
@@ -343,6 +358,19 @@ function _stationTradeTab() {
     <div style="font-size:13px;color:#44cc88;margin-bottom:6px;">SELL CARGO</div>
     ${sellHtml}
     ${sellAllValue > 0 ? `<button onclick="sellAllCargo()" style="margin-top:6px;width:100%;background:#1a2a1a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:4px;cursor:pointer;font-size:11px;">Sell All (${sellAllValue}cr)</button>` : ''}
+    <div style="font-size:13px;color:#4488ff;margin-top:10px;margin-bottom:6px;">BUY TRADE GOODS</div>
+    ${Object.entries(TRADE_GOODS).filter(([k, g]) => g.buyAt === sys).map(([key, g]) => {
+      const canAfford = SpaceState.player.credits >= g.buyPrice;
+      const hasRoom = !SpaceState.isCargoFull();
+      const disabled = !canAfford || !hasRoom;
+      const bestSell = Object.entries(g.sellBonus).sort((a,b) => b[1]-a[1])[0];
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
+        <div><span style="color:${g.color};font-size:12px;">${g.name}</span>
+        <div style="font-size:9px;color:#556;">Best sell: ${bestSell[0]} (${bestSell[1]}x)</div></div>
+        <button onclick="buyTradeGood('${key}')" ${disabled?'disabled':''} style="background:${disabled?'#181818':'#1a1a2a'};color:${disabled?'#444':'#4488ff'};border:1px solid ${disabled?'#222':'#4488ff'};border-radius:3px;padding:2px 8px;cursor:${disabled?'default':'pointer'};font-size:11px;">${g.buyPrice}cr</button>
+      </div>`;
+    }).join('') || '<div style="color:#555;font-size:11px;">No trade goods available here</div>'}
+    <div style="font-size:10px;color:#445;margin-top:4px;">Cargo: ${SpaceState.getCargoUsed()}/${SpaceState.getCargoCapacity()}</div>
     <div style="font-size:13px;color:#ddaa66;margin-top:10px;margin-bottom:6px;">CRAFTING</div>
     ${craftHtml}`;
 }
@@ -446,12 +474,22 @@ function _stationNPCsTab() {
 }
 
 function sellCargo(key) {
-  const def = RESOURCE_DEFS[key] || CONTRABAND[key];
-  if (!def || !SpaceState.cargo[key]) return;
+  const def = RESOURCE_DEFS[key] || CONTRABAND[key] || RARE_RESOURCES[key];
+  const tradeGood = TRADE_GOODS[key];
+  if (!def && !tradeGood) return;
+  if (!SpaceState.cargo[key]) return;
+
   const sys = SpaceState.currentSystem;
   const tp = TRADE_PRICES[sys] || TRADE_PRICES['sol'];
-  const isBonus = tp.bonus.includes(key);
-  const sellPrice = Math.floor(def.value * SpaceState.getSellMultiplier() * tp.sell * (isBonus ? 1.5 : 1));
+  let sellPrice;
+  if (tradeGood) {
+    // Trade goods use their own sell multiplier per system
+    const sysMultiplier = tradeGood.sellBonus[sys] || 1.0;
+    sellPrice = Math.floor(tradeGood.buyPrice * sysMultiplier * SpaceState.getSellMultiplier());
+  } else {
+    const isBonus = tp.bonus.includes(key);
+    sellPrice = Math.floor(def.value * SpaceState.getSellMultiplier() * tp.sell * (isBonus ? 1.5 : 1));
+  }
   SpaceState.player.credits += sellPrice;
   SpaceState.cargo[key]--;
   if (SpaceState.cargo[key] <= 0) delete SpaceState.cargo[key];
@@ -483,10 +521,16 @@ function sellAllCargo() {
   const sys = SpaceState.currentSystem;
   const tp = TRADE_PRICES[sys] || TRADE_PRICES['sol'];
   keys.forEach(key => {
-    const def = RESOURCE_DEFS[key] || CONTRABAND[key];
-    if (!def) return;
-    const isBonus = tp.bonus.includes(key);
-    total += Math.floor(def.value * mult * tp.sell * (isBonus ? 1.5 : 1)) * SpaceState.cargo[key];
+    const def = RESOURCE_DEFS[key] || CONTRABAND[key] || RARE_RESOURCES[key];
+    const tg = TRADE_GOODS[key];
+    if (!def && !tg) return;
+    if (tg) {
+      const sysM = tg.sellBonus[SpaceState.currentSystem] || 1.0;
+      total += Math.floor(tg.buyPrice * sysM * mult) * SpaceState.cargo[key];
+    } else {
+      const isBonus = tp.bonus.includes(key);
+      total += Math.floor(def.value * mult * tp.sell * (isBonus ? 1.5 : 1)) * SpaceState.cargo[key];
+    }
   });
   SpaceState.player.credits += total;
 
@@ -544,6 +588,16 @@ function completeMission() {
 
 function abandonMission() {
   SpaceState.activeMission = null;
+  _renderStation();
+}
+
+function buyTradeGood(key) {
+  const good = TRADE_GOODS[key];
+  if (!good || SpaceState.player.credits < good.buyPrice || SpaceState.isCargoFull()) return;
+  SpaceState.player.credits -= good.buyPrice;
+  SpaceState.addCargo(key, 1);
+  SpaceState.skills.trading.totalExp += 5;
+  SpaceState.checkSkillUp('trading');
   _renderStation();
 }
 
@@ -704,6 +758,65 @@ function showGameOverScreen(onRestart) {
     }
   };
   document.addEventListener('keydown', handler);
+}
+
+// ── Trader Screen (DOM) — hail traders in space ─────────────────────────────
+function showTraderScreen(trader) {
+  const goods = trader.getData('goods');
+  const el = document.createElement('div');
+  el.id = 'trader-screen';
+  el.style.cssText = 'position:absolute;inset:0;z-index:300;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-family:Segoe UI,system-ui,sans-serif;';
+
+  const cargoLeft = SpaceState.getCargoCapacity() - SpaceState.getCargoUsed();
+
+  const goodsHtml = goods.map((g, i) => {
+    if (g.qty <= 0) return `<div style="color:#555;font-size:11px;padding:3px 0;">Sold out</div>`;
+    const canAfford = SpaceState.player.credits >= g.price;
+    const hasRoom = cargoLeft > 0;
+    const disabled = !canAfford || !hasRoom;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
+      <span style="color:${g.color};font-size:12px;">${g.name} (x${g.qty})</span>
+      <button onclick="buyFromTrader(${i})" ${disabled?'disabled':''} style="background:${disabled?'#181818':'#1a2a1a'};color:${disabled?'#444':'#44cc44'};border:1px solid ${disabled?'#222':'#44cc44'};border-radius:3px;padding:2px 8px;cursor:${disabled?'default':'pointer'};font-size:11px;">${g.price}cr</button>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);" onclick="hideTraderScreen()"></div>
+    <div style="position:relative;background:#12121a;border:1px solid #2a3a2a;border-radius:10px;padding:20px;min-width:300px;color:#ddd;" onclick="event.stopPropagation()">
+      <h2 style="text-align:center;font-size:14px;color:#44cc44;margin-bottom:10px;">Trader Ship</h2>
+      <div style="font-size:11px;color:#888;margin-bottom:8px;text-align:center;">"Looking to buy? I've got good prices."</div>
+      <div style="font-size:11px;color:#556;margin-bottom:6px;">Cargo: ${SpaceState.getCargoUsed()}/${SpaceState.getCargoCapacity()}</div>
+      ${goodsHtml}
+      <div style="text-align:center;color:#ddcc44;font-size:12px;margin-top:10px;">Credits: ${SpaceState.player.credits}</div>
+      <div style="text-align:center;color:#445;font-size:10px;margin-top:4px;">[ESC] or click outside</div>
+    </div>`;
+
+  // Store trader ref for buying
+  window._activeTrader = trader;
+  document.getElementById('hud-overlay').appendChild(el);
+  const handler = (e) => { if (e.key === 'Escape') { hideTraderScreen(); document.removeEventListener('keydown', handler); } };
+  document.addEventListener('keydown', handler);
+}
+
+function buyFromTrader(idx) {
+  const trader = window._activeTrader;
+  if (!trader) return;
+  const goods = trader.getData('goods');
+  const g = goods[idx];
+  if (!g || g.qty <= 0 || SpaceState.player.credits < g.price || SpaceState.isCargoFull()) return;
+  SpaceState.player.credits -= g.price;
+  SpaceState.addCargo(g.key, 1);
+  g.qty--;
+  SpaceState.skills.trading.totalExp += 3;
+  SpaceState.checkSkillUp('trading');
+  hideTraderScreen();
+  showTraderScreen(trader);
+}
+
+function hideTraderScreen() {
+  const el = document.getElementById('trader-screen');
+  if (el) el.remove();
+  window._activeTrader = null;
 }
 
 // ── Settlement Screen (DOM) ──────────────────────────────────────────────────

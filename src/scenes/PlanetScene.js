@@ -112,6 +112,25 @@ class PlanetScene extends Phaser.Scene {
       this.resourceNodes.push({ sprite: node, glow, x: rx, y: ry, resource: resKey, collected: false });
     }
 
+    // Rare resources (random chance to spawn)
+    Object.entries(RARE_RESOURCES).forEach(([key, rare]) => {
+      if (Math.random() < rare.spawnChance) {
+        let rx, ry;
+        do {
+          rx = Phaser.Math.Between(50, PLANET_SIZE - 50);
+          ry = Phaser.Math.Between(50, PLANET_SIZE - 50);
+        } while (Phaser.Math.Distance.Between(rx, ry, PLANET_SIZE/2, PLANET_SIZE/2) < 80);
+
+        const node = this.add.circle(rx, ry, 7, parseInt(rare.color.replace('#','0x'))).setDepth(3);
+        const glow = this.add.circle(rx, ry, 12, parseInt(rare.color.replace('#','0x')), 0.3).setDepth(2.5);
+        this.tweens.add({ targets: glow, alpha: 0.1, scale: 1.3, duration: 600, yoyo: true, repeat: -1 });
+        // Also pulse the node itself
+        this.tweens.add({ targets: node, scale: 1.3, duration: 800, yoyo: true, repeat: -1 });
+
+        this.resourceNodes.push({ sprite: node, glow, x: rx, y: ry, resource: key, collected: false, rare: true });
+      }
+    });
+
     // ── Input ────────────────────────────────────────────────────────
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = {
@@ -164,6 +183,12 @@ class PlanetScene extends Phaser.Scene {
         node.collected = true;
         node.sprite.destroy();
         node.glow.destroy();
+
+        // Check cargo capacity
+        if (SpaceState.isCargoFull()) {
+          this._domFloat(node.x, node.y, 'Cargo full!', '#ff4444');
+          return;
+        }
 
         // Mining bonus: extra resources at higher levels
         const amount = SpaceState.getMiningBonus();
@@ -224,23 +249,14 @@ class PlanetScene extends Phaser.Scene {
   }
 
   _resourceColor(key) {
-    const colors = {
-      'plant-fiber': 0x44cc44, 'water-sample': 0x4488ff, 'bio-matter': 0x88cc44,
-      'ice-crystal': 0x88ddff, 'cryo-compound': 0x44aadd, 'magma-ore': 0xff6622,
-      'obsidian-shard': 0x553344, 'thermal-core': 0xff4400, 'scrap-metal': 0xaaaaaa,
-      'dust-crystal': 0xccbb88, 'ancient-relic': 0xddaa44,
-    };
-    return colors[key] || 0xffffff;
+    const def = RESOURCE_DEFS[key] || RARE_RESOURCES[key];
+    if (def && def.color) return parseInt(def.color.replace('#', '0x'));
+    return 0xffffff;
   }
 
   _resourceColorHex(key) {
-    const colors = {
-      'plant-fiber': '#44cc44', 'water-sample': '#4488ff', 'bio-matter': '#88cc44',
-      'ice-crystal': '#88ddff', 'cryo-compound': '#44aadd', 'magma-ore': '#ff6622',
-      'obsidian-shard': '#aa6688', 'thermal-core': '#ff4400', 'scrap-metal': '#aaaaaa',
-      'dust-crystal': '#ccbb88', 'ancient-relic': '#ddaa44',
-    };
-    return colors[key] || '#ffffff';
+    const def = RESOURCE_DEFS[key] || RARE_RESOURCES[key];
+    return def ? def.color : '#ffffff';
   }
 
   _resourceName(key) {
