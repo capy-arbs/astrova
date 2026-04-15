@@ -175,21 +175,22 @@ class PlanetScene extends Phaser.Scene {
     }
 
     // Rare resources (random chance to spawn)
+    // Rare resources — HIDDEN until scanned
+    const bonusChance = SpaceState.getRareResourceChance();
     Object.entries(RARE_RESOURCES).forEach(([key, rare]) => {
-      if (Math.random() < rare.spawnChance) {
+      // Base spawn chance + bonus from Scanning skill
+      if (Math.random() < rare.spawnChance + bonusChance) {
         let rx, ry;
         do {
           rx = Phaser.Math.Between(50, PLANET_SIZE - 50);
           ry = Phaser.Math.Between(50, PLANET_SIZE - 50);
         } while (Phaser.Math.Distance.Between(rx, ry, PLANET_SIZE/2, PLANET_SIZE/2) < 80);
 
-        const node = this.add.circle(rx, ry, 7, parseInt(rare.color.replace('#','0x'))).setDepth(3);
-        const glow = this.add.circle(rx, ry, 12, parseInt(rare.color.replace('#','0x')), 0.3).setDepth(2.5);
-        this.tweens.add({ targets: glow, alpha: 0.1, scale: 1.3, duration: 600, yoyo: true, repeat: -1 });
-        // Also pulse the node itself
-        this.tweens.add({ targets: node, scale: 1.3, duration: 800, yoyo: true, repeat: -1 });
+        const colorHex = parseInt(rare.color.replace('#', '0x'));
+        const node = this.add.circle(rx, ry, 7, colorHex).setDepth(3).setVisible(false);
+        const glow = this.add.circle(rx, ry, 12, colorHex, 0.3).setDepth(2.5).setVisible(false);
 
-        this.resourceNodes.push({ sprite: node, glow, x: rx, y: ry, resource: key, collected: false, rare: true });
+        this.resourceNodes.push({ sprite: node, glow, x: rx, y: ry, resource: key, collected: false, rare: true, revealed: false });
       }
     });
 
@@ -272,16 +273,40 @@ class PlanetScene extends Phaser.Scene {
         onComplete: () => ring.destroy(),
       });
 
-      // Reveal uncollected resources in range — make them pulse brighter
+      // Reveal resources in range
+      let revealedRare = false;
       this.resourceNodes.forEach(node => {
         if (node.collected) return;
         const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, node.x, node.y);
         if (d < scanRange) {
-          // Flash the node
-          this.tweens.add({ targets: node.sprite, scale: 2, duration: 200, yoyo: true });
-          if (node.glow) this.tweens.add({ targets: node.glow, alpha: 0.8, scale: 2, duration: 300, yoyo: true });
+          if (node.rare && !node.revealed) {
+            // REVEAL hidden rare resource!
+            node.revealed = true;
+            node.sprite.setVisible(true);
+            node.glow.setVisible(true);
+            // Dramatic reveal animation
+            node.sprite.setScale(0.1).setAlpha(0);
+            node.glow.setScale(0.1).setAlpha(0);
+            this.tweens.add({ targets: node.sprite, scale: 1.3, alpha: 1, duration: 500, ease: 'Back.easeOut',
+              onComplete: () => this.tweens.add({ targets: node.sprite, scale: 1.3, duration: 800, yoyo: true, repeat: -1 })
+            });
+            this.tweens.add({ targets: node.glow, scale: 1, alpha: 0.3, duration: 500,
+              onComplete: () => this.tweens.add({ targets: node.glow, alpha: 0.1, scale: 1.3, duration: 600, yoyo: true, repeat: -1 })
+            });
+            this._domFloat(node.x, node.y - 10, `RARE: ${this._resourceName(node.resource)}!`, this._resourceColorHex(node.resource));
+            revealedRare = true;
+          } else if (!node.rare) {
+            // Flash normal nodes
+            this.tweens.add({ targets: node.sprite, scale: 2, duration: 200, yoyo: true });
+            if (node.glow) this.tweens.add({ targets: node.glow, alpha: 0.8, scale: 2, duration: 300, yoyo: true });
+          }
         }
       });
+
+      if (revealedRare) {
+        // Bonus Scanning XP for finding rare
+        SpaceState.skills.scanning.totalExp += 15;
+      }
 
       // Scanning XP
       SpaceState.skills.scanning.totalExp += 5;
@@ -312,6 +337,7 @@ class PlanetScene extends Phaser.Scene {
     // ── Resource collection ──────────────────────────────────────────
     this.resourceNodes.forEach(node => {
       if (node.collected) return;
+      if (node.rare && !node.revealed) return; // can't collect hidden rares
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, node.x, node.y);
       if (d < 14) {
         // Check cargo capacity BEFORE collecting
