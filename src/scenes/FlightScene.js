@@ -727,16 +727,6 @@ class FlightScene extends Phaser.Scene {
       // Clean dead drone references
       this.drones = this.drones.filter(d => d && d.active);
 
-      // Bay slowly fabricates replacement drones when not at max (15s per drone)
-      if (SpaceState.dronesInBay + this.drones.length < droneMax) {
-        this.droneFabTimer = (this.droneFabTimer || 0) + delta;
-        if (this.droneFabTimer >= 15000) {
-          this.droneFabTimer = 0;
-          SpaceState.dronesInBay++;
-          this._domFloat(this.player.x, this.player.y - 20, `Drone fabricated (${SpaceState.dronesInBay} in bay)`, '#668899');
-        }
-      }
-
       // Auto-deploy from bay to replace losses while deployed
       if (this.dronesDeployed && this.droneActionState === 'idle') {
         const deployLimit = SpaceState.getDroneDeployLimit();
