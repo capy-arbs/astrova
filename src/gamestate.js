@@ -215,7 +215,7 @@ const SHIPS = {
   },
   'nairan-battlecruiser': {
     name: 'Battlecruiser',   spriteKey: 'ship-nairan-bc', size: 128,
-    hp: 300, shield: 200, speedBonus: -40, cost: 5000, pilotReq: 35,
+    hp: 300, shield: 200, speedBonus: -60, cost: 5000, pilotReq: 35,
     path: _F2 + 'Nairan - Battlecruiser - Base.png',
   },
   'nairan-smuggler': {
@@ -244,25 +244,25 @@ const SHIPS = {
   },
   'nairan-dreadnought': {
     name: 'Battleship',      spriteKey: 'ship-nairan-dn', size: 128,
-    hp: 500, shield: 300, speedBonus: -80, cost: 10000, pilotReq: 45,
+    hp: 500, shield: 300, speedBonus: -110, cost: 10000, pilotReq: 45,
     path: _F2 + 'Nairan - Dreadnought - Base.png',
   },
   'nautolan-carrier': {
     name: 'Carrier',         spriteKey: 'ship-nautolan-carrier', size: 128,
-    hp: 350, shield: 250, speedBonus: -85, cost: 15000, pilotReq: 50,
+    hp: 350, shield: 250, speedBonus: -115, cost: 15000, pilotReq: 50,
     droneMax: 8, droneDeployed: 4, droneRange: 250, cargo: 30,
     path: _F3 + 'Nautolan Ship - Dreadnought - Base.png',
   },
   // ── Endgame capitals ─────────────
   'klaed-dreadnought': {
     name: 'Dreadnought',    spriteKey: 'ship-klaed-dn', size: 128,
-    hp: 800, shield: 400, speedBonus: -120, cost: 30000, pilotReq: 60,
+    hp: 800, shield: 400, speedBonus: -135, cost: 30000, pilotReq: 60,
     cargo: 30,
     path: _F1 + "Kla'ed - Dreadnought - Base.png",
   },
   'klaed-supercarrier': {
     name: 'Super-Carrier',  spriteKey: 'ship-klaed-bc', size: 128,
-    hp: 500, shield: 350, speedBonus: -115, cost: 50000, pilotReq: 70,
+    hp: 500, shield: 350, speedBonus: -130, cost: 50000, pilotReq: 70,
     droneMax: 16, droneDeployed: 6, droneRange: 350, cargo: 40,
     path: _F1 + "Kla'ed - Battlecruiser - Base.png",
   },
