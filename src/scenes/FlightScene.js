@@ -11,10 +11,12 @@ class FlightScene extends Phaser.Scene {
   constructor() { super({ key: 'FlightScene' }); }
 
   preload() {
-    // Backgrounds
-    this.load.image('bg-void',  VOID_ENV + 'Backgrounds/PNGs/Condesed/Starry background  - Layer 01 - Void.png');
-    this.load.image('bg-stars', VOID_ENV + 'Backgrounds/PNGs/Condesed/Starry background  - Layer 02 - Stars.png');
-    this.load.image('bg-stars2',VOID_ENV + 'Backgrounds/PNGs/Condesed/Starry background  - Layer 03 - Stars.png');
+    // Backgrounds (split-up layers — no black holes or big stars)
+    const BG_SPLIT = VOID_ENV + 'Backgrounds/PNGs/Split up/';
+    this.load.image('bg-solid',    BG_SPLIT + 'Starry background  - Layer 01 - Solid colour.png');
+    this.load.image('bg-shadows',  BG_SPLIT + 'Starry background  - Layer 02 - Shadows.png');
+    this.load.image('bg-stars',    BG_SPLIT + 'Starry background  - Layer 03 - Stars.png');
+    this.load.image('bg-stars2',   BG_SPLIT + 'Starry background  - Layer 03 - Stars 2.png');
 
     // Ship damage states (starter ship)
     this.load.image('ship-full',         VOID_MAIN + 'Main Ship/Main Ship - Bases/PNGs/Main Ship - Base - Full health.png');
@@ -72,10 +74,11 @@ class FlightScene extends Phaser.Scene {
 
     this.physics.world.setBounds(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // ── Parallax backgrounds ─────────────────────────────────────────
-    this.bgVoid   = this.add.tileSprite(0, 0, WORLD_SIZE, WORLD_SIZE, 'bg-void').setOrigin(0).setScrollFactor(0).setDepth(-3);
-    this.bgStars  = this.add.tileSprite(0, 0, WORLD_SIZE, WORLD_SIZE, 'bg-stars').setOrigin(0).setScrollFactor(0).setDepth(-2);
-    this.bgStars2 = this.add.tileSprite(0, 0, WORLD_SIZE, WORLD_SIZE, 'bg-stars2').setOrigin(0).setScrollFactor(0).setDepth(-1);
+    // ── Parallax backgrounds (clean starfield, no repeating landmarks) ──
+    this.bgSolid   = this.add.tileSprite(0, 0, WORLD_SIZE, WORLD_SIZE, 'bg-solid').setOrigin(0).setScrollFactor(0).setDepth(-4);
+    this.bgShadows = this.add.tileSprite(0, 0, WORLD_SIZE, WORLD_SIZE, 'bg-shadows').setOrigin(0).setScrollFactor(0).setDepth(-3);
+    this.bgStars   = this.add.tileSprite(0, 0, WORLD_SIZE, WORLD_SIZE, 'bg-stars').setOrigin(0).setScrollFactor(0).setDepth(-2);
+    this.bgStars2  = this.add.tileSprite(0, 0, WORLD_SIZE, WORLD_SIZE, 'bg-stars2').setOrigin(0).setScrollFactor(0).setDepth(-1);
 
     // Tint backgrounds by system for visual variety
     const bgTints = {
@@ -89,6 +92,7 @@ class FlightScene extends Phaser.Scene {
     };
     const tint = bgTints[SpaceState.currentSystem];
     if (tint) {
+      this.bgShadows.setTint(tint);
       this.bgStars.setTint(tint);
       this.bgStars2.setTint(tint);
     }
@@ -252,12 +256,14 @@ class FlightScene extends Phaser.Scene {
     const cam = this.cameras.main;
 
     // ── Parallax ─────────────────────────────────────────────────────
-    this.bgVoid.tilePositionX   = cam.scrollX * 0.05;
-    this.bgVoid.tilePositionY   = cam.scrollY * 0.05;
-    this.bgStars.tilePositionX  = cam.scrollX * 0.15;
-    this.bgStars.tilePositionY  = cam.scrollY * 0.15;
-    this.bgStars2.tilePositionX = cam.scrollX * 0.3;
-    this.bgStars2.tilePositionY = cam.scrollY * 0.3;
+    this.bgSolid.tilePositionX   = cam.scrollX * 0.02;
+    this.bgSolid.tilePositionY   = cam.scrollY * 0.02;
+    this.bgShadows.tilePositionX = cam.scrollX * 0.08;
+    this.bgShadows.tilePositionY = cam.scrollY * 0.08;
+    this.bgStars.tilePositionX   = cam.scrollX * 0.15;
+    this.bgStars.tilePositionY   = cam.scrollY * 0.15;
+    this.bgStars2.tilePositionX  = cam.scrollX * 0.3;
+    this.bgStars2.tilePositionY  = cam.scrollY * 0.3;
 
     // ── Shield regen ─────────────────────────────────────────────────
     const p = SpaceState.player;
