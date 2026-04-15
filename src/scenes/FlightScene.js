@@ -46,6 +46,9 @@ class FlightScene extends Phaser.Scene {
     this.load.image('enemy-scout',   VOID_FLEET + "Kla'ed/Base/PNGs/Kla'ed - Scout - Base.png");
     this.load.image('enemy-bomber',  VOID_FLEET + "Kla'ed/Base/PNGs/Kla'ed - Bomber - Base.png");
 
+    // Police ships (use Nautolan support ship - looks different from enemies)
+    this.load.image('police', _SP + 'Foozle_2DS0014_Void_EnemyFleet_3/Nautolan/Designs - Base/PNGs/Nautolan Ship - Support - Base.png');
+
     // Planets
     this.load.image('planet-terran', ASSET + 'Terran.png');
     this.load.image('planet-ice',    ASSET + 'Ice.png');
@@ -158,9 +161,15 @@ class FlightScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this._spawnEnemies(sys.enemyCount || 20);
 
+    // ── Police patrols ─────────────────────────────────────────────
+    this.police = this.physics.add.group();
+    this._spawnPolice();
+
     // ── Collisions ───────────────────────────────────────────────────
     this.physics.add.overlap(this.bullets, this.enemies, this._bulletHitEnemy, null, this);
     this.physics.add.overlap(this.player, this.enemies, this._enemyHitPlayer, null, this);
+    this.physics.add.overlap(this.bullets, this.police, this._bulletHitPolice, null, this);
+    this.physics.add.overlap(this.player, this.police, this._policeContactPlayer, null, this);
 
     // ── Input ────────────────────────────────────────────────────────
     this.cursors  = this.input.keyboard.createCursorKeys();
@@ -427,6 +436,61 @@ class FlightScene extends Phaser.Scene {
       }
     }
 
+    // ── Police AI + scanning ─────────────────────────────────────────
+    if (SpaceState.wanted && SpaceState.wantedTimer > 0) {
+      SpaceState.wantedTimer -= delta / 1000;
+      if (SpaceState.wantedTimer <= 0) {
+        SpaceState.wanted = false;
+        SpaceState.wantedTimer = 0;
+        this._domFloat(this.player.x, this.player.y - 30, 'Wanted status cleared', '#44ff44');
+      }
+    }
+
+    this.police.children.each(p => {
+      if (!p.active) return;
+      const dist = Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y);
+
+      if (SpaceState.wanted) {
+        // Chase player when wanted
+        if (dist < 400) {
+          const angle = Phaser.Math.Angle.Between(p.x, p.y, this.player.x, this.player.y);
+          p.setVelocity(Math.cos(angle) * 85, Math.sin(angle) * 85);
+          p.setAngle(Phaser.Math.RadToDeg(angle) + 90);
+        } else {
+          p.setVelocity(p.body.velocity.x * 0.98, p.body.velocity.y * 0.98);
+        }
+      } else {
+        // Patrol — wander randomly
+        if (!p.getData('patrolTimer') || p.getData('patrolTimer') <= 0) {
+          const angle = Math.random() * Math.PI * 2;
+          p.setVelocity(Math.cos(angle) * 30, Math.sin(angle) * 30);
+          p.setAngle(Phaser.Math.RadToDeg(angle) + 90);
+          p.setData('patrolTimer', Phaser.Math.Between(2000, 5000));
+        } else {
+          p.setData('patrolTimer', p.getData('patrolTimer') - delta);
+        }
+
+        // Scan player if close and carrying contraband
+        if (dist < 80 && SpaceState.hasContraband()) {
+          if (!p.getData('scanCooldown') || p.getData('scanCooldown') <= 0) {
+            p.setData('scanCooldown', 10000); // only scan every 10s
+            const evasion = SpaceState.getScanEvasion();
+            if (Math.random() > evasion) {
+              // Caught!
+              SpaceState.wanted = true;
+              SpaceState.wantedTimer = 60; // 60 second wanted timer
+              this._domFloat(this.player.x, this.player.y - 30, 'CONTRABAND DETECTED! WANTED!', '#ff4444', 2000);
+            } else {
+              this._domFloat(this.player.x, this.player.y - 30, 'Scan evaded...', '#88ff88');
+            }
+          }
+        }
+        if (p.getData('scanCooldown') > 0) {
+          p.setData('scanCooldown', p.getData('scanCooldown') - delta);
+        }
+      }
+    });
+
     // ── Drone AI ──────────────────────────────────────────────────────
     this._updateDrones(time, delta);
 
@@ -689,6 +753,68 @@ class FlightScene extends Phaser.Scene {
     }
   }
 
+  _spawnPolice() {
+    const count = SpaceState.currentSystem === 'sol' ? 4 : SpaceState.currentSystem === 'alpha-centauri' ? 3 : 2;
+    for (let i = 0; i < count; i++) {
+      const x = Phaser.Math.Between(200, WORLD_SIZE - 200);
+      const y = Phaser.Math.Between(200, WORLD_SIZE - 200);
+      const p = this.police.create(x, y, 'police');
+      p.setScale(0.4).setDepth(5).setTint(0x4488ff);
+      p.setData('hp', 3);
+      p.setData('patrolTimer', Phaser.Math.Between(1000, 4000));
+      p.setData('scanCooldown', 0);
+    }
+  }
+
+  _bulletHitPolice(bullet, police) {
+    bullet.destroy();
+
+    // Shooting police makes you wanted!
+    if (!SpaceState.wanted) {
+      SpaceState.wanted = true;
+      SpaceState.wantedTimer = 90;
+      this._domFloat(this.player.x, this.player.y - 30, 'HOSTILE ACTION! WANTED!', '#ff4444', 2000);
+    }
+
+    let hp = police.getData('hp') - SpaceState.getBulletDamage();
+    police.setData('hp', hp);
+    police.setTint(0xff4444);
+    this.time.delayedCall(80, () => { if (police.active) police.setTint(0x4488ff); });
+
+    if (hp <= 0) {
+      SpaceState.player.credits += 5;
+      this._domFloat(police.x, police.y, '+5 cr', '#ddcc44');
+      this.tweens.add({
+        targets: police, alpha: 0, scale: 0.1, duration: 200,
+        onComplete: () => police.destroy(),
+      });
+    }
+  }
+
+  _policeContactPlayer(player, police) {
+    if (!SpaceState.wanted || this.isInvincible) return;
+
+    const p = SpaceState.player;
+    if (p.shield > 0) {
+      p.shield = Math.max(0, p.shield - 20);
+      this._domFloat(player.x, player.y, '-20 shield', '#6699ff');
+    } else {
+      p.hp = Math.max(0, p.hp - 25);
+      this._domFloat(player.x, player.y, '-25 hull', '#ff4444');
+    }
+    SpaceState.skills.shields.totalExp += 8;
+    SpaceState.checkSkillUp('shields');
+
+    this.isInvincible = true;
+    this.lastHitTime = this.time.now;
+    this.tweens.add({
+      targets: player, alpha: 0.3, duration: 80, yoyo: true, repeat: 4,
+      onComplete: () => { player.setAlpha(1); this.isInvincible = false; },
+    });
+
+    if (p.hp <= 0) this._gameOver();
+  }
+
   _drawMinimap() {
     const mm = this.minimap;
     mm.clear();
@@ -728,9 +854,23 @@ class FlightScene extends Phaser.Scene {
       mm.fillCircle(mmX + e.x * scale, mmY + e.y * scale, 1);
     });
 
+    // Police
+    this.police.children.each(p => {
+      if (!p.active) return;
+      mm.fillStyle(SpaceState.wanted ? 0xff4444 : 0x4488ff);
+      mm.fillCircle(mmX + p.x * scale, mmY + p.y * scale, 1.5);
+    });
+
     // Player
-    mm.fillStyle(0x44ff44);
+    mm.fillStyle(SpaceState.wanted ? 0xff4444 : 0x44ff44);
     mm.fillCircle(mmX + this.player.x * scale, mmY + this.player.y * scale, 2);
+
+    // Wanted indicator
+    if (SpaceState.wanted) {
+      mm.fillStyle(0xff4444);
+      mm.fillRect(mmX, mmY - 8, mmW, 6);
+      // Can't draw text with graphics, so use the HUD
+    }
   }
 
   _updateHUD() {
@@ -742,6 +882,12 @@ class FlightScene extends Phaser.Scene {
     document.getElementById('shield-fill').style.width = (Math.floor(p.shield) / maxSh * 100) + '%';
     document.getElementById('shield-text').textContent = `${Math.floor(p.shield)}/${maxSh}`;
     document.getElementById('hud-credits').textContent = `Credits: ${p.credits}`;
+
+    // Wanted status
+    const locEl = document.getElementById('hud-location');
+    if (SpaceState.wanted && locEl && !locEl.textContent.includes('WANTED')) {
+      locEl.textContent = `⚠ WANTED (${Math.ceil(SpaceState.wantedTimer)}s) — ` + locEl.textContent;
+    }
   }
 
   _domFloat(x, y, msg, color, duration) {

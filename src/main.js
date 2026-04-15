@@ -310,11 +310,12 @@ function _stationTradeTab() {
     sellHtml = '<div style="color:#666;font-size:12px;">Cargo hold empty</div>';
   } else {
     sellHtml = cargoKeys.map(key => {
-      const def = RESOURCE_DEFS[key] || { name: key, color: '#fff', value: 0 };
+      const def = RESOURCE_DEFS[key] || CONTRABAND[key] || { name: key, color: '#fff', value: 0 };
+      const isContraband = !!CONTRABAND[key];
       const isBonus = tradePrices.bonus.includes(key);
       const price = Math.floor(def.value * mult * tradePrices.sell * (isBonus ? 1.5 : 1));
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
-        <span style="color:${def.color};font-size:12px;">${def.name} x${cargo[key]} ${isBonus ? '<span style="color:#ffcc44;font-size:9px;">HIGH DEMAND</span>' : ''}</span>
+        <span style="color:${def.color};font-size:12px;">${def.name} x${cargo[key]} ${isContraband ? '<span style="color:#ff4444;font-size:9px;">CONTRABAND</span>' : isBonus ? '<span style="color:#ffcc44;font-size:9px;">HIGH DEMAND</span>' : ''}</span>
         <button onclick="sellCargo('${key}')" style="background:#1a2a1a;color:#44cc44;border:1px solid #44cc44;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;">${price}cr</button>
       </div>`;
     }).join('');
@@ -720,12 +721,13 @@ function showSettlementScreen(settlement, planetName) {
   `).join('');
 
   const shopHtml = (settlement.shop || []).map(si => {
-    const def = RESOURCE_DEFS[si.resource];
+    const def = RESOURCE_DEFS[si.resource] || CONTRABAND[si.resource];
     if (!def) return '';
+    const isContraband = !!CONTRABAND[si.resource];
     const canAfford = SpaceState.player.credits >= si.price;
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #1a1a22;">
-      <span style="color:${def.color};font-size:12px;">${def.name}</span>
-      <button onclick="buySettlementItem('${si.resource}',${si.price})" ${!canAfford?'disabled':''} style="background:${canAfford?'#1a2a1a':'#181818'};color:${canAfford?'#44cc44':'#444'};border:1px solid ${canAfford?'#44cc44':'#222'};border-radius:3px;padding:2px 8px;cursor:${canAfford?'pointer':'default'};font-size:11px;">${si.price}cr</button>
+      <span style="color:${def.color};font-size:12px;">${def.name} ${isContraband ? '<span style="color:#ff4444;font-size:9px;">ILLEGAL</span>' : ''}</span>
+      <button onclick="buySettlementItem('${si.resource}',${si.price})" ${!canAfford?'disabled':''} style="background:${canAfford?(isContraband?'#2a1a1a':'#1a2a1a'):'#181818'};color:${canAfford?(isContraband?'#ff6644':'#44cc44'):'#444'};border:1px solid ${canAfford?(isContraband?'#ff4444':'#44cc44'):'#222'};border-radius:3px;padding:2px 8px;cursor:${canAfford?'pointer':'default'};font-size:11px;">${si.price}cr</button>
     </div>`;
   }).join('');
 

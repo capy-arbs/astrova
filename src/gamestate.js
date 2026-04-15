@@ -117,6 +117,12 @@ const SHIPS = {
     hp: 300, shield: 200, speedBonus: -20, cost: 5000, pilotReq: 35,
     path: _F2 + 'Nairan - Battlecruiser - Base.png',
   },
+  'nairan-smuggler': {
+    name: 'Smuggler',        spriteKey: 'ship-nairan-torpedo', size: 64,
+    hp: 90, shield: 60, speedBonus: 20, cost: 1500, pilotReq: 15,
+    scanEvasion: 0.7, // 70% chance to evade police scans
+    path: _F2 + 'Nairan - Torpedo Ship - Base.png',
+  },
   'nairan-dreadnought': {
     name: 'Battleship',      spriteKey: 'ship-nairan-dn', size: 128,
     hp: 500, shield: 300, speedBonus: -35, cost: 10000, pilotReq: 45,
@@ -174,8 +180,10 @@ const SpaceState = {
   activeBuff: null, // { effect, amount, duration, timer }
   activeMission: null,  // { id, progress }
   completedMissions: [],
-  totalSoldValue: 0,    // tracks sell amount for sell-type missions
-  killCount: 0,         // tracks kills for kill-type missions
+  totalSoldValue: 0,
+  killCount: 0,
+  wanted: false,        // true = police are hostile
+  wantedTimer: 0,       // seconds remaining on wanted status
 
   checkSkillUp(skillName) {
     const skill = this.skills[skillName];
@@ -271,6 +279,15 @@ const SpaceState = {
     this.player.maxShield = def.shield;
     this.player.shield = def.shield;
     return true;
+  },
+
+  hasContraband() {
+    return Object.keys(this.cargo).some(k => CONTRABAND[k]);
+  },
+
+  getScanEvasion() {
+    const shipDef = SHIPS[this.player.ship] || SHIPS['starter'];
+    return shipDef.scanEvasion || 0;
   },
 
   addCargo(key, amount) { this.cargo[key] = (this.cargo[key] || 0) + amount; },
@@ -509,15 +526,28 @@ const PLANET_SETTLEMENTS = {
     npcs: [
       { name: 'Smuggler Quinn', dialog: [
         "You didn't see me here, and I didn't see you.",
-        "I deal in... hard to find items. Relics, cores, the good stuff.",
+        "I deal in... hard to find items. The kind patrols don't like.",
+        "Get yourself a Smuggler-class ship — hidden cargo bays.",
         "Everything's got a price in Haven.",
       ]},
     ],
     shop: [
       { resource: 'ancient-relic', price: 35 },
       { resource: 'thermal-core', price: 25 },
+      { resource: 'stolen-tech', price: 40, contraband: true },
+      { resource: 'black-market-arms', price: 60, contraband: true },
+      { resource: 'smuggled-relics', price: 80, contraband: true },
+      { resource: 'restricted-data', price: 100, contraband: true },
     ],
   },
+};
+
+// ── Contraband ───────────────────────────────────────────────────────────────
+const CONTRABAND = {
+  'stolen-tech':       { name: 'Stolen Tech',       color: '#ff4466', value: 80  },
+  'black-market-arms': { name: 'Black Market Arms', color: '#ff6644', value: 120 },
+  'smuggled-relics':   { name: 'Smuggled Relics',   color: '#ffaa44', value: 150 },
+  'restricted-data':   { name: 'Restricted Data',   color: '#cc44ff', value: 200 },
 };
 
 // ── Ship upgrade definitions ─────────────────────────────────────────────────
