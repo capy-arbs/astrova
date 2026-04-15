@@ -325,7 +325,7 @@ class FlightScene extends Phaser.Scene {
       this.pilotingTimer += delta;
       if (this.pilotingTimer >= 1000) {
         this.pilotingTimer -= 1000;
-        SpaceState.skills.piloting.totalExp += 8;
+        SpaceState.skills.piloting.totalExp += 4;
         const g = SpaceState.checkSkillUp('piloting');
         if (g > 0) this._domFloat(this.player.x, this.player.y - 30, `Piloting LV${SpaceState.skills.piloting.level}!`, '#44ddff');
       }
@@ -751,7 +751,7 @@ class FlightScene extends Phaser.Scene {
     this.time.delayedCall(80, () => { if (enemy.active) enemy.clearTint(); });
 
     // Gunnery XP per hit
-    SpaceState.skills.gunnery.totalExp += 5;
+    SpaceState.skills.gunnery.totalExp += 3;
     const gunneryGain = SpaceState.checkSkillUp('gunnery');
     if (gunneryGain > 0) this._domFloat(this.player.x, this.player.y - 40, `Gunnery LV${SpaceState.skills.gunnery.level}!`, '#ff8844');
 
@@ -765,7 +765,7 @@ class FlightScene extends Phaser.Scene {
     if (hp <= 0) {
       const layer = enemy.getData('layer') || 1;
       const creditReward = 10 * layer;
-      const xpReward = 15 * layer;
+      const xpReward = 8 * layer;
       SpaceState.player.credits += creditReward;
       SpaceState.skills.combat.totalExp += xpReward;
       const g = SpaceState.checkSkillUp('combat');
