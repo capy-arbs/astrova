@@ -412,10 +412,11 @@ class FlightScene extends Phaser.Scene {
       this.lastFired = time;
     }
 
-    // Update and clean up bullets
+    // Update and clean up bullets (range scales with Targeting skill)
+    const bulletRange = SpaceState.getBulletRange();
     this.bullets.children.each(b => {
       if (!b.active) return;
-      if (Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) > 600) { b.destroy(); return; }
+      if (Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) > bulletRange) { b.destroy(); return; }
 
       // Rocket acceleration
       if (b.getData('accelerating')) {

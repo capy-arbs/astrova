@@ -402,6 +402,10 @@ const SpaceState = {
   getTargetingRange() {
     return 150 + (this.skills.targeting.level - 1) * 3; // gunnery XP from further hits
   },
+  getBulletRange() {
+    // Base 400px range, scales up to 900px at high targeting
+    return 400 + (this.skills.targeting.level - 1) * 5;
+  },
   getRareResourceChance() {
     return Math.min(0.5, (this.skills.scanning.level - 1) * 0.008); // bonus rare spawn chance
   },
