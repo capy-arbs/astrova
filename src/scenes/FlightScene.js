@@ -726,6 +726,8 @@ class FlightScene extends Phaser.Scene {
 
       // Auto-replace lost drones from bay while deployed (no recall needed)
       if (this.dronesDeployed && this.droneActionState === 'idle') {
+        // Clean dead drone references first
+        this.drones = this.drones.filter(d => d && d.active);
         const deployLimit = SpaceState.getDroneDeployLimit();
         if (SpaceState.dronesInBay > 0 && this.drones.length < deployLimit) {
           this.droneReplaceTimer += delta;
