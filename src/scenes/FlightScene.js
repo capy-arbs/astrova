@@ -224,24 +224,21 @@ class FlightScene extends Phaser.Scene {
 
     // ── Carrier drones ───────────────────────────────────────────────
     this.drones = [];
-    const droneCount = SpaceState.getDroneCount();
-    if (droneCount > 0) {
-      for (let i = 0; i < droneCount; i++) {
-        const angle = (i / droneCount) * Math.PI * 2;
-        const dx = this.player.x + Math.cos(angle) * 40;
-        const dy = this.player.y + Math.sin(angle) * 40;
-        const drone = this.physics.add.sprite(dx, dy, 'drone');
-        drone.setScale(0.25).setDepth(9).setTint(0x88ccff);
-        drone.setData('orbitAngle', angle);
-        drone.setData('state', 'orbit'); // orbit | attack
-        drone.setData('target', null);
-        drone.setData('fireTimer', 0);
-        this.drones.push(drone);
-
-        // Drones can also hit enemies
-        this.physics.add.overlap(drone, this.enemies, (d, e) => this._droneHitEnemy(d, e));
+    const deployLimit = SpaceState.getDroneDeployLimit();
+    const droneMax = SpaceState.getDroneMax();
+    if (droneMax > 0) {
+      // If first time with this ship, fill the bay
+      if (SpaceState.dronesInBay === 0 && this.drones.length === 0) {
+        SpaceState.dronesInBay = droneMax;
+      }
+      // Deploy up to the limit from the bay
+      const toDeploy = Math.min(deployLimit, SpaceState.dronesInBay);
+      SpaceState.dronesInBay -= toDeploy;
+      for (let i = 0; i < toDeploy; i++) {
+        this._spawnDrone(i, toDeploy);
       }
     }
+    this.droneReplaceTimer = 0;
 
     // ── Minimap ──────────────────────────────────────────────────────
     this.minimap = this.add.graphics().setScrollFactor(0).setDepth(100);
@@ -632,8 +629,20 @@ class FlightScene extends Phaser.Scene {
       }
     });
 
-    // ── Drone AI ──────────────────────────────────────────────────────
+    // ── Drone AI + replacement ─────────────────────────────────────
     this._updateDrones(time, delta);
+
+    // Replace lost drones from bay every 5 seconds
+    const deployLimit = SpaceState.getDroneDeployLimit();
+    if (SpaceState.dronesInBay > 0 && this.drones.length < deployLimit) {
+      this.droneReplaceTimer += delta;
+      if (this.droneReplaceTimer >= 5000) {
+        this.droneReplaceTimer = 0;
+        SpaceState.dronesInBay--;
+        this._spawnDrone(this.drones.length, deployLimit);
+        this._domFloat(this.player.x, this.player.y - 30, `Drone launched (${SpaceState.dronesInBay} in bay)`, '#88ccff');
+      }
+    }
 
     // ── Minimap ──────────────────────────────────────────────────────
     this._drawMinimap();
@@ -911,9 +920,29 @@ class FlightScene extends Phaser.Scene {
   }
 
   _droneHitEnemy(drone, enemy) {
+    if (!drone.active || !enemy.active) return;
+
     // Contact damage from drones (scales with Drone Command)
     const droneDmg = SpaceState.getDroneDamage();
     let hp = enemy.getData('hp') - droneDmg;
+
+    // Drone takes damage too on contact
+    let droneHp = drone.getData('hp') - 1;
+    drone.setData('hp', droneHp);
+    drone.setTint(0xff8888);
+    this.time.delayedCall(100, () => { if (drone.active) drone.setTint(0x88ccff); });
+
+    if (droneHp <= 0) {
+      // Drone destroyed!
+      this.tweens.add({
+        targets: drone, alpha: 0, scale: 0.05, duration: 150,
+        onComplete: () => {
+          drone.destroy();
+          this.drones = this.drones.filter(d => d.active);
+          this._domFloat(drone.x, drone.y, 'Drone lost!', '#ff6644');
+        },
+      });
+    }
 
     // Drone Command XP
     SpaceState.skills.droneCommand.totalExp += 4;
@@ -951,6 +980,21 @@ class FlightScene extends Phaser.Scene {
         },
       });
     }
+  }
+
+  _spawnDrone(index, total) {
+    const angle = (index / total) * Math.PI * 2;
+    const dx = this.player.x + Math.cos(angle) * 40;
+    const dy = this.player.y + Math.sin(angle) * 40;
+    const drone = this.physics.add.sprite(dx, dy, 'drone');
+    drone.setScale(0.25).setDepth(9).setTint(0x88ccff);
+    drone.setData('orbitAngle', angle);
+    drone.setData('state', 'orbit');
+    drone.setData('target', null);
+    drone.setData('fireTimer', 0);
+    drone.setData('hp', 3); // drones have 3 HP
+    this.drones.push(drone);
+    this.physics.add.overlap(drone, this.enemies, (d, e) => this._droneHitEnemy(d, e));
   }
 
   _spawnTraders(count) {
@@ -1118,7 +1162,9 @@ class FlightScene extends Phaser.Scene {
     document.getElementById('hp-text').textContent = `${Math.floor(p.hp)}/${maxHp}`;
     document.getElementById('shield-fill').style.width = (Math.floor(p.shield) / maxSh * 100) + '%';
     document.getElementById('shield-text').textContent = `${Math.floor(p.shield)}/${maxSh}`;
-    document.getElementById('hud-credits').textContent = `Credits: ${p.credits} | Cargo: ${SpaceState.getCargoUsed()}/${SpaceState.getCargoCapacity()}`;
+    const droneMax = SpaceState.getDroneMax();
+    const droneInfo = droneMax > 0 ? ` | Drones: ${this.drones.length}+${SpaceState.dronesInBay}/${droneMax}` : '';
+    document.getElementById('hud-credits').textContent = `Credits: ${p.credits} | Cargo: ${SpaceState.getCargoUsed()}/${SpaceState.getCargoCapacity()}${droneInfo}`;
 
     // Cloak bar (only for smuggler)
     let cloakEl = document.getElementById('hud-cloak');

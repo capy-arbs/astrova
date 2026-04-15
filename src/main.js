@@ -458,6 +458,11 @@ function _stationEquipTab() {
   }).join('');
 
   return `
+    ${SpaceState.getDroneMax() > 0 ? `<div style="font-size:13px;color:#88ccff;margin-bottom:6px;">DRONE BAY</div>
+    <div style="font-size:11px;color:#aaa;margin-bottom:4px;">Active: ${_getDroneCount()} | Bay: ${SpaceState.dronesInBay} | Max: ${SpaceState.getDroneMax()}</div>
+    ${SpaceState.dronesInBay + _getDroneCount() < SpaceState.getDroneMax() ?
+      `<button onclick="buyDrones()" ${SpaceState.player.credits < 50 ? 'disabled' : ''} style="width:100%;background:${SpaceState.player.credits >= 50 ? '#1a1a2a' : '#181818'};color:${SpaceState.player.credits >= 50 ? '#88ccff' : '#444'};border:1px solid ${SpaceState.player.credits >= 50 ? '#88ccff' : '#222'};border-radius:4px;padding:3px;cursor:${SpaceState.player.credits >= 50 ? 'pointer' : 'default'};font-size:11px;margin-bottom:8px;">Buy Drone (50cr)</button>` :
+      '<div style="font-size:10px;color:#556;margin-bottom:8px;">Bay full</div>'}` : ''}
     <div style="font-size:13px;color:#6699ff;margin-bottom:6px;">UPGRADES</div>${upgradeHtml}
     <div style="font-size:13px;color:#ff8844;margin-top:10px;margin-bottom:6px;">WEAPONS</div>${weaponHtml}
     <div style="font-size:13px;color:#44ddcc;margin-top:10px;margin-bottom:6px;">SHIPYARD</div>${shipHtml}`;
@@ -621,6 +626,20 @@ function sellAllCargo() {
   SpaceState.checkSkillUp('reputation');
 
   SpaceState.cargo = {};
+  _renderStation();
+}
+
+function _getDroneCount() {
+  const scene = game.scene.getScenes(true)[0];
+  return scene && scene.drones ? scene.drones.length : 0;
+}
+
+function buyDrones() {
+  if (SpaceState.player.credits < 50) return;
+  const total = SpaceState.dronesInBay + _getDroneCount();
+  if (total >= SpaceState.getDroneMax()) return;
+  SpaceState.player.credits -= 50;
+  SpaceState.dronesInBay++;
   _renderStation();
 }
 

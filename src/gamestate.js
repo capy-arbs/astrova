@@ -250,7 +250,7 @@ const SHIPS = {
   'nautolan-carrier': {
     name: 'Carrier',         spriteKey: 'ship-nautolan-carrier', size: 128,
     hp: 350, shield: 250, speedBonus: -55, cost: 15000, pilotReq: 50,
-    drones: 4, droneRange: 250, cargo: 30,
+    droneMax: 8, droneDeployed: 4, droneRange: 250, cargo: 30,
     path: _F3 + 'Nautolan Ship - Dreadnought - Base.png',
   },
   // ── Endgame capitals ─────────────
@@ -263,7 +263,7 @@ const SHIPS = {
   'klaed-supercarrier': {
     name: 'Super-Carrier',  spriteKey: 'ship-klaed-bc', size: 128,
     hp: 500, shield: 350, speedBonus: -80, cost: 50000, pilotReq: 70,
-    drones: 6, droneRange: 350, cargo: 40,
+    droneMax: 16, droneDeployed: 6, droneRange: 350, cargo: 40,
     path: _F1 + "Kla'ed - Battlecruiser - Base.png",
   },
 };
@@ -318,6 +318,7 @@ const SpaceState = {
   killCount: 0,
   wanted: false,
   wantedTimer: 0,
+  dronesInBay: 0,     // reserve drones not yet deployed
   cloaked: false,
   cloakEnergy: 100,     // 0-100, drains while cloaked, recharges when not
   cloakMax: 100,
@@ -355,12 +356,15 @@ const SpaceState = {
   getMaxHpBonus() {
     return (this.skills.hullIntegrity.level - 1) * 3; // +3 max HP per level
   },
-  getDroneCount() {
+  getDroneDeployLimit() {
     const shipDef = SHIPS[this.player.ship];
-    if (!shipDef || !shipDef.drones) return 0;
-    const baseDrones = shipDef.drones;
-    const bonusDrones = Math.floor(this.skills.droneCommand.level / 15); // +1 at 15, 30, 45
-    return baseDrones + bonusDrones;
+    if (!shipDef || !shipDef.droneDeployed) return 0;
+    const bonusDrones = Math.floor(this.skills.droneCommand.level / 15);
+    return shipDef.droneDeployed + bonusDrones;
+  },
+  getDroneMax() {
+    const shipDef = SHIPS[this.player.ship];
+    return (shipDef && shipDef.droneMax) || 0;
   },
   getDroneDamage() {
     return 1 + Math.floor((this.skills.droneCommand.level - 1) * 0.2);
